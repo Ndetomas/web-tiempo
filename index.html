@@ -619,6 +619,13 @@ let busTimer     = null;
 /* ── Refs DOM ── */
 const $ = id => document.getElementById(id);
 
+/* Convierte un texto en algo seguro para meterlo dentro del HTML: un nombre
+   con "<" o "&" se ve tal cual y no rompe la página. Se usa con todo lo que
+   viene de fuera (buscador, Worker, favoritos guardados). */
+function esc(t) {
+  return String(t ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
 /* ── BUSCADOR ── */
 $('input-busqueda').addEventListener('input', function() {
   const q = this.value.trim();
@@ -654,8 +661,8 @@ async function realizarBusqueda(q) {
     $('lista-resultados').innerHTML = res.map((r, i) => `
       <div class="resultado-item" data-idx="${i}">
         <div>
-          <div class="resultado-nombre">${r.name}</div>
-          <div class="resultado-provincia">${[r.admin2, r.admin1].filter(Boolean).join(', ')}</div>
+          <div class="resultado-nombre">${esc(r.name)}</div>
+          <div class="resultado-provincia">${esc([r.admin2, r.admin1].filter(Boolean).join(', '))}</div>
         </div>
         <span class="resultado-flecha">→</span>
       </div>
@@ -829,7 +836,7 @@ function renderizarActual() {
   ].map(d => `
     <div class="dato-card">
       <div class="dato-label">${d.i} ${d.l}</div>
-      <div class="dato-val">${d.v}</div>
+      <div class="dato-val">${esc(d.v)}</div>
     </div>
   `).join('');
 }
@@ -930,10 +937,10 @@ function renderizarDias() {
             <div class="dia-temp max"><span class="flecha">↑</span><span class="valor">${tMx}°</span></div>
             <div class="dia-temp min"><span class="flecha">↓</span><span class="valor">${tMn}°</span></div>
           </div>
-          <span class="dia-emoji" title="${inf.d || ''}">${inf.e}</span>
+          <span class="dia-emoji" title="${esc(inf.d)}">${inf.e}</span>
           <div class="dia-meteo">
-            <div>💧 ${pp}</div>
-            <div>💨 ${textoViento(dia.viento)}</div>
+            <div>💧 ${esc(pp)}</div>
+            <div>💨 ${esc(textoViento(dia.viento))}</div>
           </div>
         </div>
       </div>
@@ -978,12 +985,12 @@ function renderizarHoras() {
 
       return corte + `
         <div class="hora-row ${estimada ? 'estimada' : ''}" style="${ii === horas.length-1 ? 'border-bottom:none' : ''}">
-          <div class="hora-hora">${h.hora.slice(11,16)}</div>
+          <div class="hora-hora">${esc(h.hora.slice(11,16))}</div>
           <div class="hora-temp">${temp}°</div>
-          <span class="hora-emoji" title="${inf.d || ''}">${inf.e}</span>
+          <span class="hora-emoji" title="${esc(inf.d)}">${inf.e}</span>
           <div class="hora-meteo">
-            <div>💧 ${pp}</div>
-            <div>💨 ${textoViento(h.viento)}</div>
+            <div>💧 ${esc(pp)}</div>
+            <div>💨 ${esc(textoViento(h.viento))}</div>
           </div>
         </div>
       `;
@@ -1008,13 +1015,13 @@ function renderizarFavoritos() {
     return;
   }
   $('contenido-favs').innerHTML = favs.map(l => `
-    <div class="fav-item" data-id="${l.id}">
+    <div class="fav-item" data-id="${esc(l.id)}">
       <span class="fav-ico">📍</span>
       <div style="flex:1;min-width:0">
-        <div class="fav-nombre">${l.name}</div>
-        <div class="fav-sub">${[l.admin2, l.admin1].filter(Boolean).join(', ')}</div>
+        <div class="fav-nombre">${esc(l.name)}</div>
+        <div class="fav-sub">${esc([l.admin2, l.admin1].filter(Boolean).join(', '))}</div>
       </div>
-      <button class="fav-del" data-id="${l.id}">✕</button>
+      <button class="fav-del" data-id="${esc(l.id)}">✕</button>
     </div>
   `).join('');
 
@@ -1041,7 +1048,7 @@ function actualizarAccesoRapido() {
   if (!favs.length) { $('acceso-rapido').style.display = 'none'; return; }
   $('acceso-rapido').style.display = 'block';
   $('lista-rapida').innerHTML = favs.slice(0,4).map(l => `
-    <button class="btn-fav-rapido" data-id="${l.id}">📍 ${l.name}</button>
+    <button class="btn-fav-rapido" data-id="${esc(l.id)}">📍 ${esc(l.name)}</button>
   `).join('');
   $('lista-rapida').querySelectorAll('.btn-fav-rapido').forEach(btn => {
     btn.addEventListener('click', () => {
