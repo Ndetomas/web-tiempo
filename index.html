@@ -25,7 +25,7 @@
     :root {
       --bg: #F5F4F0;      --surface: #FFFFFF;   --surface2: #EEECE7;
       --border: #E2DFD8;  --text: #18170F;       --text2: #615E54;
-      --text3: #A09C90;   --accent: #1D4ED8;     --warm: #C2570A;
+      --text3: #6F6B5F;   /* antes #A09C90 (2,3–2,7:1); ahora ≥ 4,5:1 en todos los fondos */   --accent: #1D4ED8;     --warm: #C2570A;
       --cold: #1D4ED8;    --red: #B91C1C;        --green: #166534;
       --radius: 18px;     --radius-sm: 12px;
     }
@@ -377,7 +377,10 @@
     .corte-estimacion::before, .corte-estimacion::after {
       content:''; flex:1; height:1px; background:var(--border);
     }
-    .hora-row.estimada .hora-temp, .hora-row.estimada .hora-hora { opacity:.72; }
+    /* Horas estimadas, algo más apagadas. La hora usa el gris claro en vez de
+       transparencia: con transparencia se quedaba en 3,4:1 de contraste. */
+    .hora-row.estimada .hora-temp { opacity:.72; }
+    .hora-row.estimada .hora-hora { color:var(--text3); }
 
     /* Botones pequeños: la zona que responde al dedo mide al menos 44×44 px
        (lo que recomienda Apple), aunque el botón se vea igual que antes. */
