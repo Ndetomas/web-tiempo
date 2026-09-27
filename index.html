@@ -39,6 +39,13 @@
     @keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes shimmer   { to   { background-position:-200% 0; } }
 
+    /* Si el móvil tiene activado "reducir movimiento", sin animaciones de
+       entrada. Las ruedas de carga siguen girando (dicen que algo pasa). */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+      #spinner-busqueda, #spinner-pagina .circulo { animation-duration:1.2s !important; animation-iteration-count:infinite !important; }
+    }
+
     ::-webkit-scrollbar { width:4px; }
     ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
 
@@ -410,6 +417,9 @@
 <body>
 
 <div id="app">
+  <!-- Avisos que no se ven pero sí lee el lector de pantalla ("Cargando…",
+       "8 resultados", errores) -->
+  <div id="aviso-lector" class="solo-lector" aria-live="polite" aria-atomic="true"></div>
   <!-- Cabecera -->
   <div id="header">
     <div id="header-top">
@@ -445,7 +455,7 @@
       <h2>¿Qué tiempo hace?</h2>
       <p>Escribe un municipio en el buscador<br>o usa tu ubicación actual.</p>
       <button id="btn-geo" type="button"><span><span aria-hidden="true">📍</span> Usar mi ubicación</span></button>
-      <div id="geo-error"></div>
+      <div id="geo-error" role="alert"></div>
       <div id="acceso-rapido" style="display:none">
         <div class="etiqueta">— ACCESO RÁPIDO —</div>
         <div id="lista-rapida"></div>
@@ -791,6 +801,14 @@ let estadoCarga  = { cargando: false, error: null };   // para la línea de esta
 /* ── Refs DOM ── */
 const $ = id => document.getElementById(id);
 
+/* Hace que el lector de pantalla diga un texto (en la zona aria-live) */
+function anunciar(texto) {
+  const el = $('aviso-lector');
+  if (!el) return;
+  el.textContent = '';
+  setTimeout(() => { el.textContent = texto; }, 60);   // así se repite aunque sea el mismo
+}
+
 /* Convierte un texto en algo seguro para meterlo dentro del HTML: un nombre
    con "<" o "&" se ve tal cual y no rompe la página. Se usa con todo lo que
    viene de fuera (buscador, Worker, favoritos guardados). */
@@ -859,6 +877,7 @@ async function realizarBusqueda(q, num, elegirPrimero = false) {
     mostrarSpinnerBus(false);
     ultimaBusqueda = { q, res };
     if (elegirPrimero && res.length) { seleccionarLugar(res[0]); return; }
+    anunciar(res.length ? `${res.length} ${res.length === 1 ? 'resultado' : 'resultados'}` : 'Sin resultados');
     if (!res.length) {
       mostrarMsgBusqueda('No se encontró ningún municipio en España con ese nombre.');
       $('lista-resultados').innerHTML = '';
@@ -892,7 +911,11 @@ async function realizarBusqueda(q, num, elegirPrimero = false) {
 function mostrarSpinnerBus(v) { $('spinner-busqueda').style.display = v ? 'block' : 'none'; }
 function abrirDropdown()  { $('dropdown').classList.add('visible'); }
 function cerrarDropdown() { $('dropdown').classList.remove('visible'); }
-function mostrarMsgBusqueda(msg) { $('msg-busqueda').textContent = msg; $('msg-busqueda').style.display = msg ? 'block' : 'none'; }
+function mostrarMsgBusqueda(msg) {
+  $('msg-busqueda').textContent = msg;
+  $('msg-busqueda').style.display = msg ? 'block' : 'none';
+  if (msg) anunciar(msg);
+}
 
 /* ── SELECCIONAR LUGAR ── */
 async function seleccionarLugar(lugar) {
@@ -930,10 +953,11 @@ function aplicarDatos(datos, t) {
   if (tabActual !== 'favoritos') setTab(tabActual);
 }
 
-async function cargarMeteo() {
+async function cargarMeteo({ silencioso = false } = {}) {
   if (!lugarActual) return;
   const num   = ++cargaNum;
   const lugar = lugarActual;
+  if (!silencioso) anunciar(`Cargando el tiempo de ${lugar.name}`);
 
   // Si ya se ven datos de este lugar (recarga), se quedan en pantalla. Si no,
   // se enseña la copia guardada; y si tampoco hay, la rueda de carga.
@@ -951,9 +975,11 @@ async function cargarMeteo() {
     guardarCache(lugar.id, datos, t);
     estadoCarga = { cargando: false, error: null };
     aplicarDatos(datos, t);
+    if (!silencioso) anunciar(`Tiempo de ${lugarActual.name} actualizado`);
   } catch(e) {
     if (num !== cargaNum) return;
     estadoCarga = { cargando: false, error: e.message };
+    if (datosActuales) anunciar('No se ha podido actualizar. ' + e.message);
     // Con datos en pantalla (guardados o anteriores) se siguen enseñando y
     // solo se avisa de que no se han podido actualizar. Se vuelven a pintar
     // porque la hora en curso y el "hoy" pueden haber cambiado.
@@ -1021,6 +1047,7 @@ function mostrarVista(cual) {
 }
 
 function mostrarError(titulo, msg) {
+  anunciar(`${titulo}. ${msg}`);
   $('error-titulo').textContent = titulo;
   $('error-msg').textContent    = msg;
   mostrarVista('error');
@@ -1417,7 +1444,7 @@ $('btn-geo').addEventListener('click', () => {
 const RECARGAR_TRAS_MS = 30 * 60 * 1000;
 function revisarFrescura() {
   if (document.visibilityState === 'hidden' || !lugarActual || estadoCarga.cargando) return;
-  if (!momentoDatos || Date.now() - momentoDatos > RECARGAR_TRAS_MS) cargarMeteo();
+  if (!momentoDatos || Date.now() - momentoDatos > RECARGAR_TRAS_MS) cargarMeteo({ silencioso: true });
   else if (datosActuales && tabActual !== 'favoritos') setTab(tabActual);
 }
 document.addEventListener('visibilitychange', revisarFrescura);
@@ -1425,7 +1452,7 @@ window.addEventListener('pageshow', e => { if (e.persisted) revisarFrescura(); }
 setInterval(revisarFrescura, 5 * 60 * 1000);
 
 /* ── REINTENTAR ── */
-$('btn-reintentar').addEventListener('click', cargarMeteo);
+$('btn-reintentar').addEventListener('click', () => cargarMeteo());
 
 /* ── ICONO DE PANTALLA DE INICIO ──
    Android necesita un "manifest" (una fichita con el nombre y el icono de la
