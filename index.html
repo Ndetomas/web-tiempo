@@ -382,6 +382,13 @@
     .hora-row.estimada .hora-temp { opacity:.72; }
     .hora-row.estimada .hora-hora { color:var(--text3); }
 
+    /* Texto que no se ve pero sí lee el lector de pantalla (p. ej. "Máxima"
+       delante de "30°", donde en pantalla solo hay una flecha) */
+    .solo-lector {
+      position:absolute !important; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+    }
+
     /* Botones pequeños: la zona que responde al dedo mide al menos 44×44 px
        (lo que recomienda Apple), aunque el botón se vea igual que antes. */
     #btn-back, #btn-limpiar, #btn-guardar, #btn-actualizar { position:relative; }
@@ -399,17 +406,17 @@
   <div id="header">
     <div id="header-top">
       <div style="display:flex;align-items:center;gap:8px">
-        <button id="btn-back">←</button>
-        <span id="titulo">🌤️ El Tiempo</span>
+        <button id="btn-back" type="button" aria-label="Volver al inicio">←</button>
+        <span id="titulo"><span aria-hidden="true">🌤️</span> El Tiempo</span>
       </div>
       <span id="badge-fuente">AEMET</span>
     </div>
     <div id="wrap-busqueda">
       <div id="barra-busqueda">
-        <span class="icono">🔍</span>
-        <input id="input-busqueda" type="search" enterkeyhint="search" placeholder="Buscar municipio, capital, isla..." autocomplete="off" autocorrect="off" spellcheck="false"/>
-        <div id="spinner-busqueda"></div>
-        <button id="btn-limpiar">✕</button>
+        <span class="icono" aria-hidden="true">🔍</span>
+        <input id="input-busqueda" type="search" aria-label="Buscar municipio" enterkeyhint="search" placeholder="Buscar municipio, capital, isla..." autocomplete="off" autocorrect="off" spellcheck="false"/>
+        <div id="spinner-busqueda" aria-hidden="true"></div>
+        <button id="btn-limpiar" type="button" aria-label="Borrar la búsqueda">✕</button>
       </div>
       <div id="dropdown">
         <div id="msg-busqueda"></div>
@@ -426,10 +433,10 @@
       <div id="marca-inicio">
         <i class="logo-detomas" role="img" aria-label="detomas.net"></i>
       </div>
-      <div class="big-icon">🌤️</div>
+      <div class="big-icon" aria-hidden="true">🌤️</div>
       <h2>¿Qué tiempo hace?</h2>
       <p>Escribe un municipio en el buscador<br>o usa tu ubicación actual.</p>
-      <button id="btn-geo">📍 Usar mi ubicación</button>
+      <button id="btn-geo" type="button"><span><span aria-hidden="true">📍</span> Usar mi ubicación</span></button>
       <div id="geo-error"></div>
       <div id="acceso-rapido" style="display:none">
         <div class="etiqueta">— ACCESO RÁPIDO —</div>
@@ -438,28 +445,28 @@
     </div>
 
     <!-- Spinner -->
-    <div id="spinner-pagina"><div class="circulo"></div></div>
+    <div id="spinner-pagina" aria-hidden="true"><div class="circulo"></div></div>
 
     <!-- Error -->
     <div id="caja-error">
-      <div class="ico">⚠️</div>
+      <div class="ico" aria-hidden="true">⚠️</div>
       <div class="titulo" id="error-titulo"></div>
       <div class="msg"   id="error-msg"></div>
-      <button id="btn-reintentar">🔄 Reintentar</button>
+      <button id="btn-reintentar" type="button"><span aria-hidden="true">🔄</span> Reintentar</button>
     </div>
 
     <!-- Tarjeta actual -->
     <div id="tarjeta-actual" style="display:none">
-      <div class="deco"></div>
+      <div class="deco" aria-hidden="true"></div>
       <div id="tarjeta-header">
         <div>
           <div id="tarjeta-nombre"></div>
           <div id="tarjeta-fecha"></div>
         </div>
-        <button id="btn-guardar">☆ Guardar</button>
+        <button id="btn-guardar" type="button" aria-pressed="false"><span><span aria-hidden="true">☆</span> Guardar</span></button>
       </div>
       <div id="temp-principal">
-        <span id="temp-emoji" class="weather-emoji"></span>
+        <span id="temp-emoji" class="weather-emoji" aria-hidden="true"></span>
         <div>
           <div id="temp-valor"></div>
           <div id="temp-desc"></div>
@@ -469,7 +476,7 @@
       <div id="grid-datos"></div>
       <div id="estado-datos">
         <span id="estado-texto"></span>
-        <button id="btn-actualizar" type="button">↻ Actualizar</button>
+        <button id="btn-actualizar" type="button"><span aria-hidden="true">↻</span> Actualizar</button>
       </div>
     </div>
 
@@ -494,7 +501,7 @@
     <!-- Pie de marca detomas.net -->
     <footer id="pie-marca">
       <a href="https://detomas.net" target="_blank" rel="noopener">
-        <i class="logo-detomas" role="img" aria-label="detomas.net"></i>
+        <i class="logo-detomas" aria-hidden="true"></i>
         <span class="txt">
           <span class="pre">UNA APP DE</span>
           <span class="brand-word"><span class="b1">detomas</span><span class="b2">.net</span></span>
@@ -506,12 +513,12 @@
   </div>
 
   <!-- Tab bar -->
-  <div id="tabbar">
-    <button class="tab-btn" data-tab="dias">     <span>📅</span>Días</button>
-    <button class="tab-btn" data-tab="horas">    <span>🕐</span>Horas</button>
-    <button class="tab-btn activo" data-tab="inicio">   <span>🏠</span>Inicio</button>
-    <button class="tab-btn" data-tab="favoritos"><span>⭐</span>Favoritos</button>
-  </div>
+  <nav id="tabbar" aria-label="Secciones">
+    <button type="button" class="tab-btn" data-tab="dias">     <span aria-hidden="true">📅</span>Días</button>
+    <button type="button" class="tab-btn" data-tab="horas">    <span aria-hidden="true">🕐</span>Horas</button>
+    <button type="button" class="tab-btn activo" data-tab="inicio" aria-current="page">   <span aria-hidden="true">🏠</span>Inicio</button>
+    <button type="button" class="tab-btn" data-tab="favoritos"><span aria-hidden="true">⭐</span>Favoritos</button>
+  </nav>
 </div>
 
 <script>
@@ -841,7 +848,7 @@ async function realizarBusqueda(q, num, elegirPrimero = false) {
           <div class="resultado-nombre">${esc(r.name)}</div>
           <div class="resultado-provincia">${esc([r.admin2, r.admin1].filter(Boolean).join(', '))}</div>
         </div>
-        <span class="resultado-flecha">→</span>
+        <span class="resultado-flecha" aria-hidden="true">→</span>
       </div>
     `).join('');
     // Guardar resultados para clic
@@ -1001,7 +1008,7 @@ function actualizarCabecera() {
     $('titulo').textContent = lugarActual.name;
     $('btn-back').style.display = 'inline-block';
   } else {
-    $('titulo').textContent = '🌤️ El Tiempo';
+    $('titulo').innerHTML = '<span aria-hidden="true">🌤️</span> El Tiempo';
     $('btn-back').style.display = 'none';
   }
 }
@@ -1023,6 +1030,9 @@ function setTab(tab) {
   tabActual = tab;
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('activo', b.dataset.tab === tab);
+    // El lector de pantalla dice cuál es la pestaña activa
+    if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
   });
   if (!lugarActual || !datosActuales) {
     if (tab === 'favoritos') mostrarVista('favoritos');
@@ -1094,7 +1104,7 @@ function renderizarActual() {
     { i:'☀️', l:'Índice UV',     v: uv != null ? `${uv}/11` : '—' },
   ].map(d => `
     <div class="dato-card">
-      <div class="dato-label">${d.i} ${d.l}</div>
+      <div class="dato-label"><span aria-hidden="true">${d.i}</span> ${d.l}</div>
       <div class="dato-val">${esc(d.v)}</div>
     </div>
   `).join('');
@@ -1175,7 +1185,8 @@ function actualizarBtnGuardar() {
   if (!lugarActual) return;
   const guardado = isFav(lugarActual.id);
   $('btn-guardar').className = 'btn-guardar' + (guardado ? ' guardado' : '');
-  $('btn-guardar').innerHTML  = (guardado ? '★ Guardado' : '☆ Guardar');
+  $('btn-guardar').innerHTML  = (guardado ? '<span><span aria-hidden="true">★</span> Guardado</span>' : '<span><span aria-hidden="true">☆</span> Guardar</span>');
+  $('btn-guardar').setAttribute('aria-pressed', guardado ? 'true' : 'false');
 }
 
 $('btn-guardar').addEventListener('click', () => {
@@ -1204,13 +1215,13 @@ function renderizarDias() {
         <div class="dia-fecha-lbl">${lbl}${esHoy ? ' · HOY' : ''}</div>
         <div class="dia-body">
           <div class="dia-temps">
-            <div class="dia-temp max"><span class="flecha">↑</span><span class="valor">${tMx}°</span></div>
-            <div class="dia-temp min"><span class="flecha">↓</span><span class="valor">${tMn}°</span></div>
+            <div class="dia-temp max"><span class="flecha" aria-hidden="true">↑</span><span class="solo-lector">Máxima </span><span class="valor">${tMx}°</span></div>
+            <div class="dia-temp min"><span class="flecha" aria-hidden="true">↓</span><span class="solo-lector">Mínima </span><span class="valor">${tMn}°</span></div>
           </div>
-          <span class="dia-emoji" title="${esc(inf.d)}">${inf.e}</span>
+          <span class="dia-emoji" role="img" aria-label="${esc(inf.d)}" title="${esc(inf.d)}">${inf.e}</span>
           <div class="dia-meteo">
-            <div>💧 ${esc(pp)}</div>
-            <div>💨 ${esc(textoViento(dia.viento))}</div>
+            <div><span aria-hidden="true">💧</span><span class="solo-lector">Probabilidad de lluvia</span> ${esc(pp)}</div>
+            <div><span aria-hidden="true">💨</span><span class="solo-lector">Viento</span> ${esc(textoViento(dia.viento))}</div>
           </div>
         </div>
       </div>
@@ -1257,10 +1268,10 @@ function renderizarHoras() {
         <div class="hora-row ${estimada ? 'estimada' : ''}" style="${ii === horas.length-1 ? 'border-bottom:none' : ''}">
           <div class="hora-hora">${esc(h.hora.slice(11,16))}</div>
           <div class="hora-temp">${temp}°</div>
-          <span class="hora-emoji" title="${esc(inf.d)}">${inf.e}</span>
+          <span class="hora-emoji" role="img" aria-label="${esc(inf.d)}" title="${esc(inf.d)}">${inf.e}</span>
           <div class="hora-meteo">
-            <div>💧 ${esc(pp)}</div>
-            <div>💨 ${esc(textoViento(h.viento))}</div>
+            <div><span aria-hidden="true">💧</span><span class="solo-lector">Probabilidad de lluvia</span> ${esc(pp)}</div>
+            <div><span aria-hidden="true">💨</span><span class="solo-lector">Viento</span> ${esc(textoViento(h.viento))}</div>
           </div>
         </div>
       `;
@@ -1286,12 +1297,12 @@ function renderizarFavoritos() {
   }
   $('contenido-favs').innerHTML = favs.map(l => `
     <div class="fav-item" data-id="${esc(l.id)}">
-      <span class="fav-ico">📍</span>
+      <span class="fav-ico" aria-hidden="true">📍</span>
       <div style="flex:1;min-width:0">
         <div class="fav-nombre">${esc(l.name)}</div>
         <div class="fav-sub">${esc([l.admin2, l.admin1].filter(Boolean).join(', '))}</div>
       </div>
-      <button class="fav-del" data-id="${esc(l.id)}">✕</button>
+      <button type="button" class="fav-del" data-id="${esc(l.id)}" aria-label="Quitar ${esc(l.name)} de favoritos">✕</button>
     </div>
   `).join('');
 
@@ -1318,7 +1329,7 @@ function actualizarAccesoRapido() {
   if (!favs.length) { $('acceso-rapido').style.display = 'none'; return; }
   $('acceso-rapido').style.display = 'block';
   $('lista-rapida').innerHTML = favs.slice(0,4).map(l => `
-    <button class="btn-fav-rapido" data-id="${esc(l.id)}">📍 ${esc(l.name)}</button>
+    <button type="button" class="btn-fav-rapido" data-id="${esc(l.id)}"><span><span aria-hidden="true">📍</span> ${esc(l.name)}</span></button>
   `).join('');
   $('lista-rapida').querySelectorAll('.btn-fav-rapido').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1332,12 +1343,12 @@ function actualizarAccesoRapido() {
 $('btn-geo').addEventListener('click', () => {
   if (!navigator.geolocation) { $('geo-error').textContent = 'Tu navegador no soporta geolocalización.'; return; }
   $('btn-geo').disabled = true;
-  $('btn-geo').textContent = '⏳ Localizando...';
+  $('btn-geo').innerHTML = '<span><span aria-hidden="true">⏳</span> Localizando...</span>';
   $('geo-error').textContent = '';
   navigator.geolocation.getCurrentPosition(
     async pos => {
       $('btn-geo').disabled = false;
-      $('btn-geo').innerHTML = '📍 Usar mi ubicación';
+      $('btn-geo').innerHTML = '<span><span aria-hidden="true">📍</span> Usar mi ubicación</span>';
       const { latitude, longitude } = pos.coords;
       // Buscar nombre del municipio más cercano via geocoding inverso aproximado
       try {
@@ -1357,7 +1368,7 @@ $('btn-geo').addEventListener('click', () => {
     },
     err => {
       $('btn-geo').disabled = false;
-      $('btn-geo').innerHTML = '📍 Usar mi ubicación';
+      $('btn-geo').innerHTML = '<span><span aria-hidden="true">📍</span> Usar mi ubicación</span>';
       $('geo-error').textContent = 'No se pudo acceder a tu ubicación. Revisa los permisos del navegador.';
     },
     { timeout: 10000 }
