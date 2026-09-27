@@ -87,7 +87,12 @@
     #input-busqueda {
       flex:1; border:none; outline:none; background:transparent;
       font-size:15px; color:var(--text); font-family:inherit; min-width:0;
+      -webkit-appearance:none; appearance:none; border-radius:0;
     }
+    /* El campo es de tipo "search" (el teclado muestra la tecla Buscar), pero
+       la ✕ propia del navegador sobra: ya está la nuestra. */
+    #input-busqueda::-webkit-search-cancel-button,
+    #input-busqueda::-webkit-search-decoration { -webkit-appearance:none; appearance:none; display:none; }
     #spinner-busqueda {
       width:16px; height:16px;
       border:2px solid var(--border); border-top-color:var(--accent);
@@ -383,7 +388,7 @@
     <div id="wrap-busqueda">
       <div id="barra-busqueda">
         <span class="icono">🔍</span>
-        <input id="input-busqueda" type="text" placeholder="Buscar municipio, capital, isla..." autocomplete="off"/>
+        <input id="input-busqueda" type="search" enterkeyhint="search" placeholder="Buscar municipio, capital, isla..." autocomplete="off" autocorrect="off" spellcheck="false"/>
         <div id="spinner-busqueda"></div>
         <button id="btn-limpiar">✕</button>
       </div>
@@ -745,6 +750,7 @@ let busTimer     = null;
 // escribiste otra cosa), se descarta en vez de pintarse encima.
 let busquedaNum  = 0;
 let cargaNum     = 0;
+let ultimaBusqueda = { q: '', res: [] };   // para la tecla Buscar/Intro
 let momentoDatos = null;    // cuándo se descargaron los datos que se ven (ms)
 let estadoCarga  = { cargando: false, error: null };   // para la línea de estado
 
@@ -769,6 +775,19 @@ $('input-busqueda').addEventListener('input', function() {
   busTimer = setTimeout(() => realizarBusqueda(q, num), 350);
 });
 
+/* Tecla Buscar del teclado del móvil (o Intro): abre el primer resultado.
+   Si la búsqueda aún no ha terminado, se lanza ya y se abre al llegar. */
+$('input-busqueda').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = e.target.value.trim();
+  if (q.length < 2) return;
+  if (ultimaBusqueda.q === q && ultimaBusqueda.res.length) { seleccionarLugar(ultimaBusqueda.res[0]); return; }
+  clearTimeout(busTimer);
+  mostrarSpinnerBus(true);
+  realizarBusqueda(q, ++busquedaNum, true);
+});
+
 $('btn-limpiar').addEventListener('click', () => {
   clearTimeout(busTimer);
   busquedaNum++;
@@ -783,11 +802,13 @@ document.addEventListener('click', e => {
   if (!$('wrap-busqueda').contains(e.target)) cerrarDropdown();
 });
 
-async function realizarBusqueda(q, num) {
+async function realizarBusqueda(q, num, elegirPrimero = false) {
   try {
     const res = await buscarLugares(q);
     if (num !== busquedaNum) return;   // ya hay una búsqueda más nueva
     mostrarSpinnerBus(false);
+    ultimaBusqueda = { q, res };
+    if (elegirPrimero && res.length) { seleccionarLugar(res[0]); return; }
     if (!res.length) {
       mostrarMsgBusqueda('No se encontró ningún municipio en España con ese nombre.');
       $('lista-resultados').innerHTML = '';
@@ -830,6 +851,7 @@ async function seleccionarLugar(lugar) {
   mostrarSpinnerBus(false);
   cerrarDropdown();
   $('input-busqueda').value = '';
+  $('input-busqueda').blur();   // se esconde el teclado del móvil
   $('btn-limpiar').style.display = 'none';
   // Si es otro lugar, los datos del anterior ya no valen
   if (!lugarActual || !mismoId(lugarActual.id, lugar.id)) datosActuales = null;
