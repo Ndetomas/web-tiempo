@@ -626,12 +626,39 @@ function removeFav(id)    { saveFavs(getFavs().filter(f => !mismoId(f.id, id)));
 function isFav(id)        { return getFavs().some(f => mismoId(f.id, id)); }
 
 /* ── APIs ── */
+
+/* Pide una dirección y lee la respuesta como JSON, con un límite de espera.
+   Si el servicio no contesta en 15 s, se corta (antes la rueda giraba para
+   siempre) y los fallos de red se explican en español (el navegador dice
+   "Load failed" o "Failed to fetch"). */
+const ESPERA_MAX_S = 15;
+async function pedirJson(url) {
+  const ctrl  = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const reloj = ctrl ? setTimeout(() => ctrl.abort(), ESPERA_MAX_S * 1000) : null;
+  const tardaDemasiado = () => new Error('El servicio tarda demasiado en responder. Inténtalo de nuevo en un momento.');
+  try {
+    let r;
+    try {
+      r = await fetch(url, ctrl ? { signal: ctrl.signal } : {});
+    } catch (e) {
+      if (ctrl?.signal.aborted) throw tardaDemasiado();
+      throw new Error(navigator.onLine === false
+        ? 'No hay conexión a internet. Revisa los datos móviles o el wifi.'
+        : 'No se ha podido conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.');
+    }
+    const datos = await r.json().catch(() => null);
+    if (ctrl?.signal.aborted) throw tardaDemasiado();
+    return { r, datos };
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
 async function buscarLugares(q) {
   // countryCode=ES: el buscador devuelve solo lugares de España. Sin él,
   // "Santa Cruz" traía 15 lugares del mundo y solo 1 era español.
-  const r = await fetch(`${GEO_URL}?name=${encodeURIComponent(q)}&count=15&language=es&format=json&countryCode=ES`);
-  if (!r.ok) throw new Error(`Error ${r.status} buscando municipios`);
-  const data = await r.json();
+  const { r, datos: data } = await pedirJson(`${GEO_URL}?name=${encodeURIComponent(q)}&count=15&language=es&format=json&countryCode=ES`);
+  if (!r.ok || !data) throw new Error(`Error ${r.status} buscando municipios`);
   return (data.results || [])
     .filter(x => x.country_code === 'ES')
     .sort((a, b) => (b.population || 0) - (a.population || 0))
@@ -640,9 +667,8 @@ async function buscarLugares(q) {
 
 async function getMeteo(lat, lon) {
   const p = new URLSearchParams({ lat, lon });
-  const r = await fetch(`${MET_URL}?${p}`);
-  const datos = await r.json().catch(() => null);
-  if (!r.ok) {
+  const { r, datos } = await pedirJson(`${MET_URL}?${p}`);
+  if (!r.ok || !datos) {
     // El Worker explica en "error" qué ha pasado (fuera de España, faltan
     // coordenadas...). Es un mensaje pensado para enseñárselo a la gente.
     throw new Error(datos?.error || `Error ${r.status} obteniendo datos meteorológicos`);
@@ -725,7 +751,7 @@ async function realizarBusqueda(q, num) {
   } catch(e) {
     if (num !== busquedaNum) return;
     mostrarSpinnerBus(false);
-    mostrarMsgBusqueda('Error: ' + e.message);
+    mostrarMsgBusqueda(e.message);
     $('lista-resultados').innerHTML = '';
     abrirDropdown();
   }
