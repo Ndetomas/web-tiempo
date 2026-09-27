@@ -655,6 +655,11 @@ let lugarActual  = null;
 let datosActuales = null;
 let tabActual    = 'inicio';
 let busTimer     = null;
+// Cada búsqueda y cada carga del tiempo lleva un número. Si llega tarde la
+// respuesta de una petición antigua (porque ya elegiste otro lugar o
+// escribiste otra cosa), se descarta en vez de pintarse encima.
+let busquedaNum  = 0;
+let cargaNum     = 0;
 
 /* ── Refs DOM ── */
 const $ = id => document.getElementById(id);
@@ -671,12 +676,16 @@ $('input-busqueda').addEventListener('input', function() {
   const q = this.value.trim();
   $('btn-limpiar').style.display = q ? 'block' : 'none';
   clearTimeout(busTimer);
-  if (q.length < 2) { cerrarDropdown(); return; }
+  const num = ++busquedaNum;
+  if (q.length < 2) { mostrarSpinnerBus(false); cerrarDropdown(); return; }
   mostrarSpinnerBus(true);
-  busTimer = setTimeout(() => realizarBusqueda(q), 350);
+  busTimer = setTimeout(() => realizarBusqueda(q, num), 350);
 });
 
 $('btn-limpiar').addEventListener('click', () => {
+  clearTimeout(busTimer);
+  busquedaNum++;
+  mostrarSpinnerBus(false);
   $('input-busqueda').value = '';
   $('btn-limpiar').style.display = 'none';
   cerrarDropdown();
@@ -687,9 +696,10 @@ document.addEventListener('click', e => {
   if (!$('wrap-busqueda').contains(e.target)) cerrarDropdown();
 });
 
-async function realizarBusqueda(q) {
+async function realizarBusqueda(q, num) {
   try {
     const res = await buscarLugares(q);
+    if (num !== busquedaNum) return;   // ya hay una búsqueda más nueva
     mostrarSpinnerBus(false);
     if (!res.length) {
       mostrarMsgBusqueda('No se encontró ningún municipio en España con ese nombre.');
@@ -713,6 +723,7 @@ async function realizarBusqueda(q) {
     });
     abrirDropdown();
   } catch(e) {
+    if (num !== busquedaNum) return;
     mostrarSpinnerBus(false);
     mostrarMsgBusqueda('Error: ' + e.message);
     $('lista-resultados').innerHTML = '';
@@ -727,6 +738,9 @@ function mostrarMsgBusqueda(msg) { $('msg-busqueda').textContent = msg; $('msg-b
 
 /* ── SELECCIONAR LUGAR ── */
 async function seleccionarLugar(lugar) {
+  clearTimeout(busTimer);
+  busquedaNum++;
+  mostrarSpinnerBus(false);
   cerrarDropdown();
   $('input-busqueda').value = '';
   $('btn-limpiar').style.display = 'none';
@@ -737,9 +751,12 @@ async function seleccionarLugar(lugar) {
 
 async function cargarMeteo() {
   if (!lugarActual) return;
+  const num = ++cargaNum;
   mostrarVista('cargando');
   try {
-    datosActuales = await getMeteo(lugarActual.latitude, lugarActual.longitude);
+    const datos = await getMeteo(lugarActual.latitude, lugarActual.longitude);
+    if (num !== cargaNum) return;   // mientras tanto se eligió otro lugar
+    datosActuales = datos;
 
     // Cuando se entra por geolocalización no sabemos el nombre del sitio, pero
     // AEMET sí nos dice de qué municipio es la predicción: lo aprovechamos.
@@ -752,6 +769,7 @@ async function cargarMeteo() {
     setTab(tabActual === 'inicio' ? 'inicio' : tabActual);
     mostrarVista('datos');
   } catch(e) {
+    if (num !== cargaNum) return;
     mostrarError('Error cargando el tiempo', e.message);
   }
 }
@@ -799,6 +817,7 @@ function actualizarCabecera() {
 }
 
 $('btn-back').addEventListener('click', () => {
+  cargaNum++;   // si había una carga en marcha, ya no se pinta
   lugarActual   = null;
   datosActuales = null;
   tabActual     = 'inicio';
