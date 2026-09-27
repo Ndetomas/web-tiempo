@@ -492,7 +492,8 @@ const GEO_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const MET_URL = 'https://tiempo-proxy.detomas.workers.dev/tiempo';
 
 const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+// En español los meses van en minúscula ("27 de septiembre")
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 /* ── WMO codes ── */
 function wmo(code) {
@@ -857,7 +858,10 @@ function renderizarActual() {
   const hoy = diaDe(ahoraEnLugar());
 
   $('tarjeta-nombre').textContent   = lugarActual.name;
-  $('tarjeta-fecha').textContent    = `${[lugarActual.admin2, lugarActual.admin1].filter(Boolean).join(', ')} · ${DIAS[hoy.getDay()]} ${hoy.getDate()} de ${MESES[hoy.getMonth()]}`;
+  // Con "Mi ubicación" no hay provincia: entonces solo va la fecha, sin " · "
+  const provincia = [lugarActual.admin2, lugarActual.admin1].filter(Boolean).join(', ');
+  const fecha     = `${DIAS[hoy.getDay()]} ${hoy.getDate()} de ${MESES[hoy.getMonth()]}`;
+  $('tarjeta-fecha').textContent    = [provincia, fecha].filter(Boolean).join(' · ');
   $('temp-emoji').textContent       = inf.e;
   $('temp-valor').textContent       = c.temperatura != null ? `${Math.round(c.temperatura)}°` : '—';
   $('temp-desc').textContent        = inf.d;
@@ -906,6 +910,7 @@ function textoProb(p) {
 /* El viento llega igual de AEMET y de Open-Meteo: {direccion:'NE', velocidad:9} */
 function textoViento(v) {
   if (!v || v.velocidad == null) return '—';
+  if (Math.round(v.velocidad) === 0) return 'Calma';
   // "C" es como AEMET llama a la calma (viento flojo variable)
   const dir = (!v.direccion || v.direccion === 'C') ? '' : v.direccion + ' ';
   return `${dir}${Math.round(v.velocidad)} km/h`;
@@ -1002,12 +1007,12 @@ function renderizarHoras() {
   if (!datosActuales?.horas?.length) return;
   const ahora = ahoraEnLugar().slice(0, 13);   // hora en curso en el lugar
 
-  // Agrupar por día, de la hora actual en adelante y máximo 3 días
+  // De la hora actual en adelante, 72 horas como dice el título, agrupadas
+  // por día. (Antes eran 3 días de calendario: a las 23 h salían solo 25 h.)
   const grupos = {};
-  for (const h of datosActuales.horas) {
-    if (h.hora.slice(0, 13) < ahora) continue;
+  const proximas = datosActuales.horas.filter(h => h.hora.slice(0, 13) >= ahora).slice(0, 72);
+  for (const h of proximas) {
     const dia = h.hora.slice(0,10);
-    if (Object.keys(grupos).length >= 3 && !grupos[dia]) break;
     if (!grupos[dia]) grupos[dia] = [];
     grupos[dia].push(h);
   }
@@ -1017,7 +1022,7 @@ function renderizarHoras() {
   // se vea de un vistazo hasta dónde llega lo oficial.
   let yaAvisado = datosActuales.fuente !== 'aemet';
 
-  $('lista-horas').innerHTML = Object.entries(grupos).slice(0,3).map(([dia, horas]) => {
+  $('lista-horas').innerHTML = Object.entries(grupos).map(([dia, horas]) => {
     const dt  = diaDe(dia);
     const lbl = `${DIAS[dt.getDay()].toUpperCase()} ${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()}`;
     const filas = horas.map((h, ii) => {
