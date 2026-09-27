@@ -564,8 +564,47 @@ function iconoDe(item, esDeNoche) {
   return { e: '🌡️', d: '—' };
 }
 
+/* ── Hora del lugar ──
+   El Worker da las horas en la hora local del lugar ("2026-09-27T14:00"),
+   sin zona horaria. Para saber qué hora es "ahora" allí no vale el reloj del
+   móvil: desde Madrid, en Tenerife es una hora menos. España tiene dos zonas:
+   la de Canarias y la del resto. */
+function zonaDe(l) {
+  if (!l) return null;
+  // Los lugares de "Mi ubicación" (id geo_...) se guardaban con Europe/Madrid
+  // fijo; para ellos, y si falta la zona, se deduce por las coordenadas.
+  if (l.timezone && !String(l.id).startsWith('geo_')) return l.timezone;
+  if (l.latitude == null || l.longitude == null) return null;
+  return (l.latitude < 30 && l.longitude < -13) ? 'Atlantic/Canary' : 'Europe/Madrid';
+}
+
+const dos = n => String(n).padStart(2, '0');
+
+/* Fecha y hora de ahora en el lugar elegido, como "2026-09-27T14:05". Si el
+   navegador no sabe de zonas horarias, se usa el reloj del móvil. */
+function ahoraEnLugar() {
+  const d = new Date();
+  const tz = zonaDe(lugarActual);
+  if (tz) {
+    try {
+      const p = {};
+      new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+        .formatToParts(d).forEach(x => { p[x.type] = x.value; });
+      return `${p.year}-${p.month}-${p.day}T${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
+    } catch (e) { /* se sigue con el reloj del móvil */ }
+  }
+  return `${d.getFullYear()}-${dos(d.getMonth()+1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}`;
+}
+
+/* "2026-09-27" → objeto Date a mediodía, solo para sacar el día de la semana */
+function diaDe(fechaTexto) {
+  return new Date(fechaTexto.slice(0, 10) + 'T12:00:00');
+}
+
 function esNoche(fechaHora) {
-  const h = new Date(fechaHora).getHours();
+  // La hora se lee del propio texto ("...T22:00"), que ya es la hora del lugar
+  const h = parseInt(String(fechaHora).slice(11, 13), 10);
   return h < 7 || h >= 21;
 }
 
@@ -815,10 +854,10 @@ function renderizarActual() {
   // más parecido al momento actual es la hora en curso, así que se busca esa.
   const c   = horaEnCurso() || datosActuales.horas[0];
   const inf = iconoDe(c, esNoche(c.hora));
-  const now = new Date();
+  const hoy = diaDe(ahoraEnLugar());
 
   $('tarjeta-nombre').textContent   = lugarActual.name;
-  $('tarjeta-fecha').textContent    = `${[lugarActual.admin2, lugarActual.admin1].filter(Boolean).join(', ')} · ${DIAS[now.getDay()]} ${now.getDate()} de ${MESES[now.getMonth()]}`;
+  $('tarjeta-fecha').textContent    = `${[lugarActual.admin2, lugarActual.admin1].filter(Boolean).join(', ')} · ${DIAS[hoy.getDay()]} ${hoy.getDate()} de ${MESES[hoy.getMonth()]}`;
   $('temp-emoji').textContent       = inf.e;
   $('temp-valor').textContent       = c.temperatura != null ? `${Math.round(c.temperatura)}°` : '—';
   $('temp-desc').textContent        = inf.d;
@@ -827,7 +866,7 @@ function renderizarActual() {
   pintarSelloFuente();
   actualizarBtnGuardar();
 
-  const uv = datosActuales.dias?.[0]?.uvMax;
+  const uv = diasDesdeHoy()[0]?.uvMax;
   $('grid-datos').innerHTML = [
     { i:'💨', l:'Viento',        v: textoViento(c.viento) },
     { i:'💧', l:'Humedad',       v: c.humedad != null ? `${c.humedad}%` : '—' },
@@ -844,9 +883,17 @@ function renderizarActual() {
 /* Devuelve la hora en curso dentro de la predicción, o null si la predicción
    empieza más tarde (puede pasar si AEMET va con retraso). */
 function horaEnCurso() {
-  const ahora = new Date();
-  ahora.setMinutes(0, 0, 0);
-  return datosActuales.horas.find(h => new Date(h.hora).getTime() === ahora.getTime()) || null;
+  const clave = ahoraEnLugar().slice(0, 13);   // "2026-09-27T14"
+  return datosActuales.horas.find(h => h.hora.slice(0, 13) === clave) || null;
+}
+
+/* Los días de la predicción desde hoy (hoy en el lugar). Si los datos son de
+   ayer, el primer día ya no es "hoy" y se quita. */
+function diasDesdeHoy() {
+  const dias = datosActuales?.dias || [];
+  const hoy = ahoraEnLugar().slice(0, 10);
+  const desdeHoy = dias.filter(d => d.fecha.slice(0, 10) >= hoy);
+  return desdeHoy.length ? desdeHoy : dias;
 }
 
 /* Probabilidad de lluvia. Si AEMET no da el dato (null) se pone "—": antes
@@ -921,8 +968,10 @@ $('btn-guardar').addEventListener('click', () => {
 /* ── DÍAS ── */
 function renderizarDias() {
   if (!datosActuales?.dias?.length) return;
-  $('lista-dias').innerHTML = datosActuales.dias.map((dia, i) => {
-    const dt  = new Date(dia.fecha.slice(0,10) + 'T12:00:00');
+  const hoy = ahoraEnLugar().slice(0, 10);
+  $('lista-dias').innerHTML = diasDesdeHoy().map(dia => {
+    const esHoy = dia.fecha.slice(0, 10) === hoy;
+    const dt  = diaDe(dia.fecha);
     const lbl = `${DIAS[dt.getDay()].toUpperCase()} ${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()}`;
     // El resumen del día se pinta siempre con el cielo de día, nunca de noche
     const inf = iconoDe({ cielo: dia.cielo?.descripcion, codigoWmo: dia.codigoWmo }, false);
@@ -930,8 +979,8 @@ function renderizarDias() {
     const tMn = dia.tempMin != null ? Math.round(dia.tempMin) : '—';
     const pp  = textoProb(dia.probPrecipitacion);
     return `
-      <div class="dia-row ${i === 0 ? 'hoy' : ''}">
-        <div class="dia-fecha-lbl">${lbl}${i === 0 ? ' · HOY' : ''}</div>
+      <div class="dia-row ${esHoy ? 'hoy' : ''}">
+        <div class="dia-fecha-lbl">${lbl}${esHoy ? ' · HOY' : ''}</div>
         <div class="dia-body">
           <div class="dia-temps">
             <div class="dia-temp max"><span class="flecha">↑</span><span class="valor">${tMx}°</span></div>
@@ -951,12 +1000,12 @@ function renderizarDias() {
 /* ── HORAS ── */
 function renderizarHoras() {
   if (!datosActuales?.horas?.length) return;
-  const ahora = new Date(); ahora.setMinutes(0,0,0);
+  const ahora = ahoraEnLugar().slice(0, 13);   // hora en curso en el lugar
 
   // Agrupar por día, de la hora actual en adelante y máximo 3 días
   const grupos = {};
   for (const h of datosActuales.horas) {
-    if (new Date(h.hora) < ahora) continue;
+    if (h.hora.slice(0, 13) < ahora) continue;
     const dia = h.hora.slice(0,10);
     if (Object.keys(grupos).length >= 3 && !grupos[dia]) break;
     if (!grupos[dia]) grupos[dia] = [];
@@ -969,7 +1018,7 @@ function renderizarHoras() {
   let yaAvisado = datosActuales.fuente !== 'aemet';
 
   $('lista-horas').innerHTML = Object.entries(grupos).slice(0,3).map(([dia, horas]) => {
-    const dt  = new Date(dia + 'T12:00:00');
+    const dt  = diaDe(dia);
     const lbl = `${DIAS[dt.getDay()].toUpperCase()} ${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()}`;
     const filas = horas.map((h, ii) => {
       const inf  = iconoDe(h, esNoche(h.hora));
@@ -1078,8 +1127,8 @@ $('btn-geo').addEventListener('click', () => {
           name: 'Mi ubicación',
           admin1: '', admin2: '',
           latitude, longitude,
-          timezone: 'Europe/Madrid'
         };
+        lugar.timezone = zonaDe(lugar);   // Canarias o península, según dónde estés
         await seleccionarLugar(lugar);
       } catch(e) {
         $('geo-error').textContent = 'Error: ' + e.message;
