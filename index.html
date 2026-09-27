@@ -190,6 +190,9 @@
     }
     .dato-label { font-size:11px; color:var(--text3); margin-bottom:4px; }
     .dato-val   { font-size:14px; font-weight:600; }
+    #estado-datos { font-size:12px; color:var(--text2); margin-top:12px; line-height:1.5; position:relative; }
+    #estado-datos:empty { display:none; }
+    #estado-datos.aviso { color:var(--warm); }
 
     /* ── Secciones ── */
     .sec-title {
@@ -432,6 +435,7 @@
         </div>
       </div>
       <div id="grid-datos"></div>
+      <div id="estado-datos"></div>
     </div>
 
     <!-- Previsión 7 días -->
@@ -625,6 +629,37 @@ function mismoId(a, b)    { return String(a) === String(b); }
 function removeFav(id)    { saveFavs(getFavs().filter(f => !mismoId(f.id, id))); }
 function isFav(id)        { return getFavs().some(f => mismoId(f.id, id)); }
 
+/* ── Última previsión guardada (localStorage) ──
+   Se guarda la última respuesta de los 5 últimos lugares vistos. Al abrir un
+   lugar se enseña al instante y la previsión nueva llega por detrás. Si no
+   hay cobertura, al menos se ve la última que se descargó (como mucho de
+   hace 48 horas). */
+const CACHE_KEY = 'tiempo5_cache';
+const CACHE_LUGARES = 5;
+const CACHE_MAX_MS  = 48 * 3600 * 1000;
+
+function leerTodaCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') || {}; } catch { return {}; }
+}
+function leerCache(id) {
+  const e = leerTodaCache()[String(id)];
+  return (e && e.datos && Date.now() - e.t < CACHE_MAX_MS) ? e : null;
+}
+function guardarCache(id, datos, t) {
+  const c = leerTodaCache();
+  c[String(id)] = { t, datos };
+  const recientes = Object.keys(c)
+    .filter(k => c[k] && Date.now() - c[k].t < CACHE_MAX_MS)
+    .sort((a, b) => c[b].t - c[a].t)
+    .slice(0, CACHE_LUGARES);
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(recientes.map(k => [k, c[k]]))));
+  } catch (e) {
+    // Sin espacio o sin permiso (modo privado): la app funciona igual, sin copia.
+    try { localStorage.removeItem(CACHE_KEY); } catch {}
+  }
+}
+
 /* ── APIs ── */
 
 /* Pide una dirección y lee la respuesta como JSON, con un límite de espera.
@@ -686,6 +721,8 @@ let busTimer     = null;
 // escribiste otra cosa), se descarta en vez de pintarse encima.
 let busquedaNum  = 0;
 let cargaNum     = 0;
+let momentoDatos = null;    // cuándo se descargaron los datos que se ven (ms)
+let estadoCarga  = { cargando: false, error: null };   // para la línea de estado
 
 /* ── Refs DOM ── */
 const $ = id => document.getElementById(id);
@@ -770,34 +807,81 @@ async function seleccionarLugar(lugar) {
   cerrarDropdown();
   $('input-busqueda').value = '';
   $('btn-limpiar').style.display = 'none';
+  // Si es otro lugar, los datos del anterior ya no valen
+  if (!lugarActual || !mismoId(lugarActual.id, lugar.id)) datosActuales = null;
   lugarActual = lugar;
   setTab('inicio');
   await cargarMeteo();
 }
 
+/* Pone en pantalla unos datos del lugar actual (recién descargados o de la
+   copia guardada). "t" es cuándo se descargaron. */
+function aplicarDatos(datos, t) {
+  datosActuales = datos;
+  momentoDatos  = t;
+
+  // Cuando se entra por geolocalización no sabemos el nombre del sitio, pero
+  // AEMET sí nos dice de qué municipio es la predicción: lo aprovechamos.
+  if (lugarActual.name === 'Mi ubicación' && datosActuales.municipio) {
+    lugarActual.name = datosActuales.municipio.nombre;
+  }
+
+  actualizarCabecera();
+  actualizarBadgesFuente();
+  // Si estás en Favoritos, la recarga no te saca de ahí
+  if (tabActual !== 'favoritos') setTab(tabActual);
+}
+
 async function cargarMeteo() {
   if (!lugarActual) return;
-  const num = ++cargaNum;
-  mostrarVista('cargando');
+  const num   = ++cargaNum;
+  const lugar = lugarActual;
+
+  // Si ya se ven datos de este lugar (recarga), se quedan en pantalla. Si no,
+  // se enseña la copia guardada; y si tampoco hay, la rueda de carga.
+  if (!datosActuales) {
+    const guardado = leerCache(lugar.id);
+    if (guardado) aplicarDatos(guardado.datos, guardado.t);
+  }
+  estadoCarga = { cargando: true, error: null };
+  if (datosActuales) pintarEstadoDatos(); else mostrarVista('cargando');
+
   try {
-    const datos = await getMeteo(lugarActual.latitude, lugarActual.longitude);
+    const datos = await getMeteo(lugar.latitude, lugar.longitude);
     if (num !== cargaNum) return;   // mientras tanto se eligió otro lugar
-    datosActuales = datos;
-
-    // Cuando se entra por geolocalización no sabemos el nombre del sitio, pero
-    // AEMET sí nos dice de qué municipio es la predicción: lo aprovechamos.
-    if (lugarActual.name === 'Mi ubicación' && datosActuales.municipio) {
-      lugarActual.name = datosActuales.municipio.nombre;
-    }
-
-    actualizarCabecera();
-    actualizarBadgesFuente();
-    setTab(tabActual === 'inicio' ? 'inicio' : tabActual);
-    mostrarVista('datos');
+    const t = Date.now();
+    guardarCache(lugar.id, datos, t);
+    estadoCarga = { cargando: false, error: null };
+    aplicarDatos(datos, t);
   } catch(e) {
     if (num !== cargaNum) return;
-    mostrarError('Error cargando el tiempo', e.message);
+    estadoCarga = { cargando: false, error: e.message };
+    // Con datos en pantalla (guardados o anteriores) se siguen enseñando y
+    // solo se avisa de que no se han podido actualizar.
+    if (datosActuales) pintarEstadoDatos();
+    else mostrarError('Error cargando el tiempo', e.message);
   }
+}
+
+/* Línea bajo los datos de la tarjeta: avisa si se está actualizando o si
+   no se ha podido y se están viendo datos antiguos. */
+function pintarEstadoDatos() {
+  const el = $('estado-datos');
+  if (!el) return;
+  el.classList.toggle('aviso', !!estadoCarga.error);
+  if (estadoCarga.cargando) el.textContent = 'Actualizando…';
+  else if (estadoCarga.error) el.textContent = `⚠️ Sin actualizar: se ven los datos de ${textoHace(momentoDatos)}. ${estadoCarga.error}`;
+  else el.textContent = '';
+}
+
+/* "hace 5 min", "hace 3 h"... */
+function textoHace(t) {
+  if (!t) return 'antes';
+  const min = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (min < 1)  return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.floor(h / 24)} d`;
 }
 
 /* ── VISTAS ── */
@@ -846,6 +930,7 @@ $('btn-back').addEventListener('click', () => {
   cargaNum++;   // si había una carga en marcha, ya no se pinta
   lugarActual   = null;
   datosActuales = null;
+  momentoDatos  = null;
   tabActual     = 'inicio';
   actualizarCabecera();
   setTab('inicio');
@@ -913,6 +998,7 @@ function renderizarActual() {
   $('temp-sensacion').textContent   = c.sensacion != null ? `Sensación ${Math.round(c.sensacion)}°` : '';
 
   pintarSelloFuente();
+  pintarEstadoDatos();
   actualizarBtnGuardar();
 
   const uv = diasDesdeHoy()[0]?.uvMax;
