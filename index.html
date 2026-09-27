@@ -842,6 +842,13 @@ function horaEnCurso() {
   return datosActuales.horas.find(h => new Date(h.hora).getTime() === ahora.getTime()) || null;
 }
 
+/* Probabilidad de lluvia. Si AEMET no da el dato (null) se pone "—": antes
+   salía "0 %", que parece un dato y puede ser falso (horas sin dato entre
+   otras con un 90 %). */
+function textoProb(p) {
+  return p != null ? `${p}%` : '—';
+}
+
 /* El viento llega igual de AEMET y de Open-Meteo: {direccion:'NE', velocidad:9} */
 function textoViento(v) {
   if (!v || v.velocidad == null) return '—';
@@ -914,7 +921,7 @@ function renderizarDias() {
     const inf = iconoDe({ cielo: dia.cielo?.descripcion, codigoWmo: dia.codigoWmo }, false);
     const tMx = dia.tempMax != null ? Math.round(dia.tempMax) : '—';
     const tMn = dia.tempMin != null ? Math.round(dia.tempMin) : '—';
-    const pp  = dia.probPrecipitacion ?? 0;
+    const pp  = textoProb(dia.probPrecipitacion);
     return `
       <div class="dia-row ${i === 0 ? 'hoy' : ''}">
         <div class="dia-fecha-lbl">${lbl}${i === 0 ? ' · HOY' : ''}</div>
@@ -925,7 +932,7 @@ function renderizarDias() {
           </div>
           <span class="dia-emoji" title="${inf.d || ''}">${inf.e}</span>
           <div class="dia-meteo">
-            <div>💧 ${pp}%</div>
+            <div>💧 ${pp}</div>
             <div>💨 ${textoViento(dia.viento)}</div>
           </div>
         </div>
@@ -960,7 +967,7 @@ function renderizarHoras() {
     const filas = horas.map((h, ii) => {
       const inf  = iconoDe(h, esNoche(h.hora));
       const temp = h.temperatura != null ? Math.round(h.temperatura) : '—';
-      const pp   = h.probPrecipitacion ?? 0;
+      const pp   = textoProb(h.probPrecipitacion);
       const estimada = h.fuente !== 'aemet';
 
       let corte = '';
@@ -975,7 +982,7 @@ function renderizarHoras() {
           <div class="hora-temp">${temp}°</div>
           <span class="hora-emoji" title="${inf.d || ''}">${inf.e}</span>
           <div class="hora-meteo">
-            <div>💧 ${pp}%</div>
+            <div>💧 ${pp}</div>
             <div>💨 ${textoViento(h.viento)}</div>
           </div>
         </div>
