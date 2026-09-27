@@ -256,6 +256,9 @@
     .dia-temp.min .valor { color:var(--cold); }
     .dia-emoji { font-size:30px; flex-shrink:0; }
     .dia-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.7; min-width:0; }
+    /* Sensación y humedad del día, debajo de la fila */
+    .dia-extra { font-size:12px; color:var(--text2); margin-top:6px; }
+
     /* Descripción del cielo ("Nubes altas") encima de lluvia y viento */
     .meteo-cielo { color:var(--text); font-weight:500; line-height:1.35; margin-bottom:2px; }
 
@@ -1284,9 +1287,27 @@ function renderizarDias() {
           <span class="dia-emoji" aria-hidden="true">${inf.e}</span>
           <div class="dia-meteo">${htmlMeteo(inf.d, pp, textoViento(dia.viento))}</div>
         </div>
+        ${htmlExtraDia(dia)}
       </div>
     `;
   }).join('');
+}
+
+/* Datos del día que el Worker ya enviaba y no se usaban: sensación térmica
+   y humedad, mínima y máxima. Solo vienen con AEMET; si faltan, no se pinta
+   nada. */
+function htmlExtraDia(dia) {
+  const rango = (min, max, unidad) => {
+    if (min == null && max == null) return null;
+    if (min == null || max == null) return `${Math.round(min ?? max)}${unidad}`;
+    return Math.round(min) === Math.round(max) ? `${Math.round(min)}${unidad}` : `${Math.round(min)}–${Math.round(max)}${unidad}`;
+  };
+  const partes = [];
+  const sens = rango(dia.sensacionMin, dia.sensacionMax, '°');
+  const hum  = rango(dia.humedadMin,   dia.humedadMax,   ' %');
+  if (sens) partes.push(`Sensación ${sens}`);
+  if (hum)  partes.push(`Humedad ${hum}`);
+  return partes.length ? `<div class="dia-extra">${esc(partes.join(' · '))}</div>` : '';
 }
 
 /* ── HORAS ── */
