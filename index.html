@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <!-- Sin bloquear el zoom: quien lo necesite puede ampliar con dos dedos -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>El Tiempo — España</title>
 
   <!-- Para poder guardarla en la pantalla de inicio del móvil como si fuera
@@ -28,6 +29,9 @@
       --cold: #1D4ED8;    --red: #B91C1C;        --green: #166534;
       --radius: 18px;     --radius-sm: 12px;
     }
+    /* Se puede ampliar con dos dedos, pero un doble toque rápido en un botón
+       no amplía la página */
+    html { touch-action:manipulation; }
     html, body { height:100%; font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
 
     @keyframes spin      { to   { transform:rotate(360deg); } }
@@ -86,7 +90,9 @@
     #barra-busqueda span.icono { font-size:16px; opacity:.5; flex-shrink:0; }
     #input-busqueda {
       flex:1; border:none; outline:none; background:transparent;
-      font-size:15px; color:var(--text); font-family:inherit; min-width:0;
+      /* 16 px como mínimo: con menos, el iPhone amplía la página él solo al
+         tocar el buscador */
+      font-size:16px; color:var(--text); font-family:inherit; min-width:0;
       -webkit-appearance:none; appearance:none; border-radius:0;
     }
     /* El campo es de tipo "search" (el teclado muestra la tecla Buscar), pero
