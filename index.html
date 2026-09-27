@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <!-- Sin bloquear el zoom: quien lo necesite puede ampliar con dos dedos -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>El Tiempo — España</title>
 
   <!-- Para poder guardarla en la pantalla de inicio del móvil como si fuera
@@ -24,16 +25,26 @@
     :root {
       --bg: #F5F4F0;      --surface: #FFFFFF;   --surface2: #EEECE7;
       --border: #E2DFD8;  --text: #18170F;       --text2: #615E54;
-      --text3: #A09C90;   --accent: #1D4ED8;     --warm: #C2570A;
+      --text3: #6F6B5F;   /* antes #A09C90 (2,3–2,7:1); ahora ≥ 4,5:1 en todos los fondos */   --accent: #1D4ED8;     --warm: #C2570A;
       --cold: #1D4ED8;    --red: #B91C1C;        --green: #166534;
       --radius: 18px;     --radius-sm: 12px;
     }
+    /* Se puede ampliar con dos dedos, pero un doble toque rápido en un botón
+       no amplía la página */
+    html { touch-action:manipulation; }
     html, body { height:100%; font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; overscroll-behavior:none; }
 
     @keyframes spin      { to   { transform:rotate(360deg); } }
     @keyframes fadeUp    { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     @keyframes slideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes shimmer   { to   { background-position:-200% 0; } }
+
+    /* Si el móvil tiene activado "reducir movimiento", sin animaciones de
+       entrada. Las ruedas de carga siguen girando (dicen que algo pasa). */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+      #spinner-busqueda, #spinner-pagina .circulo { animation-duration:1.2s !important; animation-iteration-count:infinite !important; }
+    }
 
     ::-webkit-scrollbar { width:4px; }
     ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
@@ -86,8 +97,15 @@
     #barra-busqueda span.icono { font-size:16px; opacity:.5; flex-shrink:0; }
     #input-busqueda {
       flex:1; border:none; outline:none; background:transparent;
-      font-size:15px; color:var(--text); font-family:inherit; min-width:0;
+      /* 16 px como mínimo: con menos, el iPhone amplía la página él solo al
+         tocar el buscador */
+      font-size:16px; color:var(--text); font-family:inherit; min-width:0;
+      -webkit-appearance:none; appearance:none; border-radius:0;
     }
+    /* El campo es de tipo "search" (el teclado muestra la tecla Buscar), pero
+       la ✕ propia del navegador sobra: ya está la nuestra. */
+    #input-busqueda::-webkit-search-cancel-button,
+    #input-busqueda::-webkit-search-decoration { -webkit-appearance:none; appearance:none; display:none; }
     #spinner-busqueda {
       width:16px; height:16px;
       border:2px solid var(--border); border-top-color:var(--accent);
@@ -115,11 +133,15 @@
       padding:13px 16px; cursor:pointer;
       border-bottom:1px solid var(--border);
       transition:background .12s;
+      /* es un botón: se le quita el aspecto de botón del navegador */
+      width:100%; background:none; border-top:none; border-left:none; border-right:none;
+      font:inherit; color:inherit; text-align:left;
     }
     .resultado-item:last-child { border-bottom:none; }
-    .resultado-item:hover { background:var(--surface2); }
-    .resultado-nombre { font-size:15px; font-weight:500; color:var(--text); }
-    .resultado-provincia { font-size:12px; color:var(--text3); margin-top:1px; }
+    .resultado-item:hover, .resultado-item:focus-visible { background:var(--surface2); }
+    .resultado-item:focus-visible, .fav-abrir:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+    .resultado-nombre { display:block; font-size:15px; font-weight:500; color:var(--text); }
+    .resultado-provincia { display:block; font-size:12px; color:var(--text3); margin-top:1px; }
     .resultado-flecha { color:var(--text3); font-size:14px; margin-left:8px; }
     #msg-busqueda { padding:12px 16px; color:var(--red); font-size:13px; line-height:1.5; }
 
@@ -190,6 +212,17 @@
     }
     .dato-label { font-size:11px; color:var(--text3); margin-bottom:4px; }
     .dato-val   { font-size:14px; font-weight:600; }
+    #estado-datos {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      font-size:12px; color:var(--text2); margin-top:12px; line-height:1.5; position:relative;
+    }
+    #estado-datos.aviso #estado-texto { color:var(--warm); }
+    #btn-actualizar {
+      background:rgba(255,255,255,.85); border:1px solid var(--border);
+      border-radius:999px; padding:5px 12px; cursor:pointer; flex-shrink:0;
+      font-size:12px; font-weight:600; color:var(--text2); font-family:inherit;
+    }
+    #btn-actualizar:disabled { opacity:.5; cursor:default; }
 
     /* ── Secciones ── */
     .sec-title {
@@ -222,7 +255,12 @@
     .dia-temp.max .valor { color:var(--warm); }
     .dia-temp.min .valor { color:var(--cold); }
     .dia-emoji { font-size:30px; flex-shrink:0; }
-    .dia-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.7; }
+    .dia-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.7; min-width:0; }
+    /* Sensación y humedad del día, debajo de la fila */
+    .dia-extra { font-size:12px; color:var(--text2); margin-top:6px; }
+
+    /* Descripción del cielo ("Nubes altas") encima de lluvia y viento */
+    .meteo-cielo { color:var(--text); font-weight:500; line-height:1.35; margin-bottom:2px; }
 
     /* ── Horas ── */
     .hora-grupo-titulo {
@@ -238,7 +276,7 @@
     .hora-hora  { width:48px; font-family:'DM Mono',monospace; font-size:14px; color:var(--text2); flex-shrink:0; }
     .hora-temp  { width:46px; font-size:22px; font-weight:700; flex-shrink:0; }
     .hora-emoji { font-size:24px; flex-shrink:0; }
-    .hora-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.65; }
+    .hora-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.65; min-width:0; }
 
     /* ── Favoritos ── */
     #pantalla-favs { animation:fadeUp .3s ease both; }
@@ -254,9 +292,12 @@
     .fav-item:last-child { border-bottom:none; }
     .fav-item:hover { background:var(--surface2); }
     .fav-ico   { font-size:22px; flex-shrink:0; }
-    .fav-nombre{ font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .fav-sub   { font-size:12px; color:var(--text3); margin-top:1px; }
-    .fav-del   { background:none; border:none; color:var(--text3); cursor:pointer; font-size:17px; padding:4px 6px; line-height:1; flex-shrink:0; }
+    .fav-abrir { flex:1; min-width:0; display:block; background:none; border:none; padding:0;
+                 font:inherit; color:inherit; text-align:left; cursor:pointer; border-radius:6px; }
+    .fav-nombre{ display:block; font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .fav-sub   { display:block; font-size:12px; color:var(--text3); margin-top:1px; }
+    .fav-del   { background:none; border:none; color:var(--text3); cursor:pointer; font-size:17px; padding:4px 6px; line-height:1; flex-shrink:0;
+                 min-width:44px; min-height:44px; margin:-8px -10px -8px 0; }
 
     /* ── Spinner página ── */
     #spinner-pagina { display:none; justify-content:center; padding:56px 0; }
@@ -354,27 +395,49 @@
     .corte-estimacion::before, .corte-estimacion::after {
       content:''; flex:1; height:1px; background:var(--border);
     }
-    .hora-row.estimada .hora-temp, .hora-row.estimada .hora-hora { opacity:.72; }
+    /* Horas estimadas, algo más apagadas. La hora usa el gris claro en vez de
+       transparencia: con transparencia se quedaba en 3,4:1 de contraste. */
+    .hora-row.estimada .hora-temp { opacity:.72; }
+    .hora-row.estimada .hora-hora { color:var(--text3); }
+
+    /* Texto que no se ve pero sí lee el lector de pantalla (p. ej. "Máxima"
+       delante de "30°", donde en pantalla solo hay una flecha) */
+    .solo-lector {
+      position:absolute !important; width:1px; height:1px; padding:0; margin:-1px;
+      overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+    }
+
+    /* Botones pequeños: la zona que responde al dedo mide al menos 44×44 px
+       (lo que recomienda Apple), aunque el botón se vea igual que antes. */
+    #btn-back, #btn-limpiar, #btn-guardar, #btn-actualizar { position:relative; }
+    #btn-back::after, #btn-limpiar::after, #btn-guardar::after, #btn-actualizar::after {
+      content:''; position:absolute; left:50%; top:50%;
+      width:max(100%, 44px); height:max(100%, 44px);
+      transform:translate(-50%, -50%);
+    }
   </style>
 </head>
 <body>
 
 <div id="app">
+  <!-- Avisos que no se ven pero sí lee el lector de pantalla ("Cargando…",
+       "8 resultados", errores) -->
+  <div id="aviso-lector" class="solo-lector" aria-live="polite" aria-atomic="true"></div>
   <!-- Cabecera -->
   <div id="header">
     <div id="header-top">
       <div style="display:flex;align-items:center;gap:8px">
-        <button id="btn-back">←</button>
-        <span id="titulo">🌤️ El Tiempo</span>
+        <button id="btn-back" type="button" aria-label="Volver al inicio">←</button>
+        <span id="titulo"><span aria-hidden="true">🌤️</span> El Tiempo</span>
       </div>
       <span id="badge-fuente">AEMET</span>
     </div>
     <div id="wrap-busqueda">
       <div id="barra-busqueda">
-        <span class="icono">🔍</span>
-        <input id="input-busqueda" type="text" placeholder="Buscar municipio, capital, isla..." autocomplete="off"/>
-        <div id="spinner-busqueda"></div>
-        <button id="btn-limpiar">✕</button>
+        <span class="icono" aria-hidden="true">🔍</span>
+        <input id="input-busqueda" type="search" aria-label="Buscar municipio" enterkeyhint="search" placeholder="Buscar municipio, capital, isla..." autocomplete="off" autocorrect="off" spellcheck="false"/>
+        <div id="spinner-busqueda" aria-hidden="true"></div>
+        <button id="btn-limpiar" type="button" aria-label="Borrar la búsqueda">✕</button>
       </div>
       <div id="dropdown">
         <div id="msg-busqueda"></div>
@@ -391,11 +454,11 @@
       <div id="marca-inicio">
         <i class="logo-detomas" role="img" aria-label="detomas.net"></i>
       </div>
-      <div class="big-icon">🌤️</div>
+      <div class="big-icon" aria-hidden="true">🌤️</div>
       <h2>¿Qué tiempo hace?</h2>
       <p>Escribe un municipio en el buscador<br>o usa tu ubicación actual.</p>
-      <button id="btn-geo">📍 Usar mi ubicación</button>
-      <div id="geo-error"></div>
+      <button id="btn-geo" type="button"><span><span aria-hidden="true">📍</span> Usar mi ubicación</span></button>
+      <div id="geo-error" role="alert"></div>
       <div id="acceso-rapido" style="display:none">
         <div class="etiqueta">— ACCESO RÁPIDO —</div>
         <div id="lista-rapida"></div>
@@ -403,28 +466,28 @@
     </div>
 
     <!-- Spinner -->
-    <div id="spinner-pagina"><div class="circulo"></div></div>
+    <div id="spinner-pagina" aria-hidden="true"><div class="circulo"></div></div>
 
     <!-- Error -->
     <div id="caja-error">
-      <div class="ico">⚠️</div>
+      <div class="ico" aria-hidden="true">⚠️</div>
       <div class="titulo" id="error-titulo"></div>
       <div class="msg"   id="error-msg"></div>
-      <button id="btn-reintentar">🔄 Reintentar</button>
+      <button id="btn-reintentar" type="button"><span aria-hidden="true">🔄</span> Reintentar</button>
     </div>
 
     <!-- Tarjeta actual -->
     <div id="tarjeta-actual" style="display:none">
-      <div class="deco"></div>
+      <div class="deco" aria-hidden="true"></div>
       <div id="tarjeta-header">
         <div>
           <div id="tarjeta-nombre"></div>
           <div id="tarjeta-fecha"></div>
         </div>
-        <button id="btn-guardar">☆ Guardar</button>
+        <button id="btn-guardar" type="button" aria-pressed="false"><span><span aria-hidden="true">☆</span> Guardar</span></button>
       </div>
       <div id="temp-principal">
-        <span id="temp-emoji" class="weather-emoji"></span>
+        <span id="temp-emoji" class="weather-emoji" aria-hidden="true"></span>
         <div>
           <div id="temp-valor"></div>
           <div id="temp-desc"></div>
@@ -432,6 +495,10 @@
         </div>
       </div>
       <div id="grid-datos"></div>
+      <div id="estado-datos">
+        <span id="estado-texto"></span>
+        <button id="btn-actualizar" type="button"><span aria-hidden="true">↻</span> Actualizar</button>
+      </div>
     </div>
 
     <!-- Previsión 7 días -->
@@ -455,7 +522,7 @@
     <!-- Pie de marca detomas.net -->
     <footer id="pie-marca">
       <a href="https://detomas.net" target="_blank" rel="noopener">
-        <i class="logo-detomas" role="img" aria-label="detomas.net"></i>
+        <i class="logo-detomas" aria-hidden="true"></i>
         <span class="txt">
           <span class="pre">UNA APP DE</span>
           <span class="brand-word"><span class="b1">detomas</span><span class="b2">.net</span></span>
@@ -467,12 +534,12 @@
   </div>
 
   <!-- Tab bar -->
-  <div id="tabbar">
-    <button class="tab-btn" data-tab="dias">     <span>📅</span>Días</button>
-    <button class="tab-btn" data-tab="horas">    <span>🕐</span>Horas</button>
-    <button class="tab-btn activo" data-tab="inicio">   <span>🏠</span>Inicio</button>
-    <button class="tab-btn" data-tab="favoritos"><span>⭐</span>Favoritos</button>
-  </div>
+  <nav id="tabbar" aria-label="Secciones">
+    <button type="button" class="tab-btn" data-tab="dias">     <span aria-hidden="true">📅</span>Días</button>
+    <button type="button" class="tab-btn" data-tab="horas">    <span aria-hidden="true">🕐</span>Horas</button>
+    <button type="button" class="tab-btn activo" data-tab="inicio" aria-current="page">   <span aria-hidden="true">🏠</span>Inicio</button>
+    <button type="button" class="tab-btn" data-tab="favoritos"><span aria-hidden="true">⭐</span>Favoritos</button>
+  </nav>
 </div>
 
 <script>
@@ -492,7 +559,8 @@ const GEO_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const MET_URL = 'https://tiempo-proxy.detomas.workers.dev/tiempo';
 
 const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+// En español los meses van en minúscula ("27 de septiembre")
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 /* ── WMO codes ── */
 function wmo(code) {
@@ -564,8 +632,47 @@ function iconoDe(item, esDeNoche) {
   return { e: '🌡️', d: '—' };
 }
 
+/* ── Hora del lugar ──
+   El Worker da las horas en la hora local del lugar ("2026-09-27T14:00"),
+   sin zona horaria. Para saber qué hora es "ahora" allí no vale el reloj del
+   móvil: desde Madrid, en Tenerife es una hora menos. España tiene dos zonas:
+   la de Canarias y la del resto. */
+function zonaDe(l) {
+  if (!l) return null;
+  // Los lugares de "Mi ubicación" (id geo_...) se guardaban con Europe/Madrid
+  // fijo; para ellos, y si falta la zona, se deduce por las coordenadas.
+  if (l.timezone && !String(l.id).startsWith('geo_')) return l.timezone;
+  if (l.latitude == null || l.longitude == null) return null;
+  return (l.latitude < 30 && l.longitude < -13) ? 'Atlantic/Canary' : 'Europe/Madrid';
+}
+
+const dos = n => String(n).padStart(2, '0');
+
+/* Fecha y hora de ahora en el lugar elegido, como "2026-09-27T14:05". Si el
+   navegador no sabe de zonas horarias, se usa el reloj del móvil. */
+function ahoraEnLugar() {
+  const d = new Date();
+  const tz = zonaDe(lugarActual);
+  if (tz) {
+    try {
+      const p = {};
+      new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+        .formatToParts(d).forEach(x => { p[x.type] = x.value; });
+      return `${p.year}-${p.month}-${p.day}T${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
+    } catch (e) { /* se sigue con el reloj del móvil */ }
+  }
+  return `${d.getFullYear()}-${dos(d.getMonth()+1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}`;
+}
+
+/* "2026-09-27" → objeto Date a mediodía, solo para sacar el día de la semana */
+function diaDe(fechaTexto) {
+  return new Date(fechaTexto.slice(0, 10) + 'T12:00:00');
+}
+
 function esNoche(fechaHora) {
-  const h = new Date(fechaHora).getHours();
+  // La hora se lee del propio texto ("...T22:00"), que ya es la hora del lugar
+  const h = parseInt(String(fechaHora).slice(11, 13), 10);
   return h < 7 || h >= 21;
 }
 
@@ -578,15 +685,91 @@ function dirViento(g) {
 const FAV_KEY = 'tiempo5_favs';
 function getFavs()        { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; } }
 function saveFavs(favs)   { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }
-function addFav(lugar)    { const f = getFavs(); if (!f.find(x => x.id === lugar.id)) { f.unshift(lugar); saveFavs(f.slice(0,12)); } }
-function removeFav(id)    { saveFavs(getFavs().filter(f => f.id !== id)); }
-function isFav(id)        { return getFavs().some(f => f.id === id); }
+function addFav(lugar)    { const f = getFavs(); if (!f.find(x => mismoId(x.id, lugar.id))) { f.unshift(lugar); saveFavs(f.slice(0,12)); } }
+// Los id del buscador son números (3117735) pero al leerlos de la página
+// llegan como texto ("3117735"): se comparan siempre como texto.
+function mismoId(a, b)    { return String(a) === String(b); }
+function removeFav(id)    { saveFavs(getFavs().filter(f => !mismoId(f.id, id))); }
+function isFav(id)        { return getFavs().some(f => mismoId(f.id, id)); }
+
+/* ── Última previsión guardada (localStorage) ──
+   Se guarda la última respuesta de los 5 últimos lugares vistos. Al abrir un
+   lugar se enseña al instante y la previsión nueva llega por detrás. Si no
+   hay cobertura, al menos se ve la última que se descargó (como mucho de
+   hace 48 horas). */
+const CACHE_KEY = 'tiempo5_cache';
+const CACHE_LUGARES = 5;
+const CACHE_MAX_MS  = 48 * 3600 * 1000;
+
+function leerTodaCache() {
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') || {}; } catch { return {}; }
+}
+function leerCache(id) {
+  const e = leerTodaCache()[String(id)];
+  return (e && e.datos && Date.now() - e.t < CACHE_MAX_MS) ? e : null;
+}
+function guardarCache(id, datos, t) {
+  const c = leerTodaCache();
+  c[String(id)] = { t, datos };
+  const recientes = Object.keys(c)
+    .filter(k => c[k] && Date.now() - c[k].t < CACHE_MAX_MS)
+    .sort((a, b) => c[b].t - c[a].t)
+    .slice(0, CACHE_LUGARES);
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(recientes.map(k => [k, c[k]]))));
+  } catch (e) {
+    // Sin espacio o sin permiso (modo privado): la app funciona igual, sin copia.
+    try { localStorage.removeItem(CACHE_KEY); } catch {}
+  }
+}
+
+/* ── Último lugar visto ──
+   Al abrir la app se carga directamente el último lugar que miraste. Si
+   vuelves al inicio con la flecha ←, se olvida y la app abrirá en blanco. */
+const ULTIMO_KEY = 'tiempo5_ultimo';
+function guardarUltimo(lugar) { try { localStorage.setItem(ULTIMO_KEY, JSON.stringify(lugar)); } catch {} }
+function olvidarUltimo()      { try { localStorage.removeItem(ULTIMO_KEY); } catch {} }
+function leerUltimo() {
+  try {
+    const l = JSON.parse(localStorage.getItem(ULTIMO_KEY) || 'null');
+    return (l && l.latitude != null && l.longitude != null) ? l : null;
+  } catch { return null; }
+}
 
 /* ── APIs ── */
+
+/* Pide una dirección y lee la respuesta como JSON, con un límite de espera.
+   Si el servicio no contesta en 15 s, se corta (antes la rueda giraba para
+   siempre) y los fallos de red se explican en español (el navegador dice
+   "Load failed" o "Failed to fetch"). */
+const ESPERA_MAX_S = 15;
+async function pedirJson(url) {
+  const ctrl  = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const reloj = ctrl ? setTimeout(() => ctrl.abort(), ESPERA_MAX_S * 1000) : null;
+  const tardaDemasiado = () => new Error('El servicio tarda demasiado en responder. Inténtalo de nuevo en un momento.');
+  try {
+    let r;
+    try {
+      r = await fetch(url, ctrl ? { signal: ctrl.signal } : {});
+    } catch (e) {
+      if (ctrl?.signal.aborted) throw tardaDemasiado();
+      throw new Error(navigator.onLine === false
+        ? 'No hay conexión a internet. Revisa los datos móviles o el wifi.'
+        : 'No se ha podido conectar con el servicio. Revisa tu conexión e inténtalo de nuevo.');
+    }
+    const datos = await r.json().catch(() => null);
+    if (ctrl?.signal.aborted) throw tardaDemasiado();
+    return { r, datos };
+  } finally {
+    clearTimeout(reloj);
+  }
+}
+
 async function buscarLugares(q) {
-  const r = await fetch(`${GEO_URL}?name=${encodeURIComponent(q)}&count=15&language=es&format=json`);
-  if (!r.ok) throw new Error(`Error ${r.status} buscando municipios`);
-  const data = await r.json();
+  // countryCode=ES: el buscador devuelve solo lugares de España. Sin él,
+  // "Santa Cruz" traía 15 lugares del mundo y solo 1 era español.
+  const { r, datos: data } = await pedirJson(`${GEO_URL}?name=${encodeURIComponent(q)}&count=15&language=es&format=json&countryCode=ES`);
+  if (!r.ok || !data) throw new Error(`Error ${r.status} buscando municipios`);
   return (data.results || [])
     .filter(x => x.country_code === 'ES')
     .sort((a, b) => (b.population || 0) - (a.population || 0))
@@ -595,9 +778,8 @@ async function buscarLugares(q) {
 
 async function getMeteo(lat, lon) {
   const p = new URLSearchParams({ lat, lon });
-  const r = await fetch(`${MET_URL}?${p}`);
-  const datos = await r.json().catch(() => null);
-  if (!r.ok) {
+  const { r, datos } = await pedirJson(`${MET_URL}?${p}`);
+  if (!r.ok || !datos) {
     // El Worker explica en "error" qué ha pasado (fuera de España, faltan
     // coordenadas...). Es un mensaje pensado para enseñárselo a la gente.
     throw new Error(datos?.error || `Error ${r.status} obteniendo datos meteorológicos`);
@@ -610,21 +792,77 @@ let lugarActual  = null;
 let datosActuales = null;
 let tabActual    = 'inicio';
 let busTimer     = null;
+// Cada búsqueda y cada carga del tiempo lleva un número. Si llega tarde la
+// respuesta de una petición antigua (porque ya elegiste otro lugar o
+// escribiste otra cosa), se descarta en vez de pintarse encima.
+let busquedaNum  = 0;
+let cargaNum     = 0;
+let ultimaBusqueda = { q: '', res: [] };   // para la tecla Buscar/Intro
+let momentoDatos = null;    // cuándo se descargaron los datos que se ven (ms)
+let estadoCarga  = { cargando: false, error: null };   // para la línea de estado
 
 /* ── Refs DOM ── */
 const $ = id => document.getElementById(id);
+
+/* Hace que el lector de pantalla diga un texto (en la zona aria-live) */
+function anunciar(texto) {
+  const el = $('aviso-lector');
+  if (!el) return;
+  el.textContent = '';
+  setTimeout(() => { el.textContent = texto; }, 60);   // así se repite aunque sea el mismo
+}
+
+/* Convierte un texto en algo seguro para meterlo dentro del HTML: un nombre
+   con "<" o "&" se ve tal cual y no rompe la página. Se usa con todo lo que
+   viene de fuera (buscador, Worker, favoritos guardados). */
+function esc(t) {
+  return String(t ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
 
 /* ── BUSCADOR ── */
 $('input-busqueda').addEventListener('input', function() {
   const q = this.value.trim();
   $('btn-limpiar').style.display = q ? 'block' : 'none';
   clearTimeout(busTimer);
-  if (q.length < 2) { cerrarDropdown(); return; }
+  const num = ++busquedaNum;
+  if (q.length < 2) { mostrarSpinnerBus(false); cerrarDropdown(); return; }
   mostrarSpinnerBus(true);
-  busTimer = setTimeout(() => realizarBusqueda(q), 350);
+  busTimer = setTimeout(() => realizarBusqueda(q, num), 350);
 });
 
+/* Tecla Buscar del teclado del móvil (o Intro): abre el primer resultado.
+   Si la búsqueda aún no ha terminado, se lanza ya y se abre al llegar. */
+$('input-busqueda').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = e.target.value.trim();
+  if (q.length < 2) return;
+  if (ultimaBusqueda.q === q && ultimaBusqueda.res.length) { seleccionarLugar(ultimaBusqueda.res[0]); return; }
+  clearTimeout(busTimer);
+  mostrarSpinnerBus(true);
+  realizarBusqueda(q, ++busquedaNum, true);
+});
+
+/* Con teclado: flecha abajo pasa del buscador a la lista, las flechas se
+   mueven por ella y Escape la cierra y vuelve al buscador. */
+function moverEnResultados(e) {
+  const items = [...$('lista-resultados').querySelectorAll('.resultado-item')];
+  if (e.key === 'Escape') { cerrarDropdown(); $('input-busqueda').focus(); return; }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  if (!items.length || !$('dropdown').classList.contains('visible')) return;
+  e.preventDefault();
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown') items[Math.min(i + 1, items.length - 1)].focus();
+  else if (i <= 0) $('input-busqueda').focus();
+  else items[i - 1].focus();
+}
+$('input-busqueda').addEventListener('keydown', moverEnResultados);
+$('lista-resultados').addEventListener('keydown', moverEnResultados);
+
 $('btn-limpiar').addEventListener('click', () => {
+  clearTimeout(busTimer);
+  busquedaNum++;
+  mostrarSpinnerBus(false);
   $('input-busqueda').value = '';
   $('btn-limpiar').style.display = 'none';
   cerrarDropdown();
@@ -635,10 +873,14 @@ document.addEventListener('click', e => {
   if (!$('wrap-busqueda').contains(e.target)) cerrarDropdown();
 });
 
-async function realizarBusqueda(q) {
+async function realizarBusqueda(q, num, elegirPrimero = false) {
   try {
     const res = await buscarLugares(q);
+    if (num !== busquedaNum) return;   // ya hay una búsqueda más nueva
     mostrarSpinnerBus(false);
+    ultimaBusqueda = { q, res };
+    if (elegirPrimero && res.length) { seleccionarLugar(res[0]); return; }
+    anunciar(res.length ? `${res.length} ${res.length === 1 ? 'resultado' : 'resultados'}` : 'Sin resultados');
     if (!res.length) {
       mostrarMsgBusqueda('No se encontró ningún municipio en España con ese nombre.');
       $('lista-resultados').innerHTML = '';
@@ -647,13 +889,13 @@ async function realizarBusqueda(q) {
     }
     mostrarMsgBusqueda('');
     $('lista-resultados').innerHTML = res.map((r, i) => `
-      <div class="resultado-item" data-idx="${i}">
-        <div>
-          <div class="resultado-nombre">${r.name}</div>
-          <div class="resultado-provincia">${[r.admin2, r.admin1].filter(Boolean).join(', ')}</div>
-        </div>
-        <span class="resultado-flecha">→</span>
-      </div>
+      <button type="button" class="resultado-item" data-idx="${i}">
+        <span>
+          <span class="resultado-nombre">${esc(r.name)}</span>
+          <span class="resultado-provincia">${esc([r.admin2, r.admin1].filter(Boolean).join(', '))}</span>
+        </span>
+        <span class="resultado-flecha" aria-hidden="true">→</span>
+      </button>
     `).join('');
     // Guardar resultados para clic
     $('lista-resultados').querySelectorAll('.resultado-item').forEach((el, i) => {
@@ -661,8 +903,9 @@ async function realizarBusqueda(q) {
     });
     abrirDropdown();
   } catch(e) {
+    if (num !== busquedaNum) return;
     mostrarSpinnerBus(false);
-    mostrarMsgBusqueda('Error: ' + e.message);
+    mostrarMsgBusqueda(e.message);
     $('lista-resultados').innerHTML = '';
     abrirDropdown();
   }
@@ -671,37 +914,115 @@ async function realizarBusqueda(q) {
 function mostrarSpinnerBus(v) { $('spinner-busqueda').style.display = v ? 'block' : 'none'; }
 function abrirDropdown()  { $('dropdown').classList.add('visible'); }
 function cerrarDropdown() { $('dropdown').classList.remove('visible'); }
-function mostrarMsgBusqueda(msg) { $('msg-busqueda').textContent = msg; $('msg-busqueda').style.display = msg ? 'block' : 'none'; }
+function mostrarMsgBusqueda(msg) {
+  $('msg-busqueda').textContent = msg;
+  $('msg-busqueda').style.display = msg ? 'block' : 'none';
+  if (msg) anunciar(msg);
+}
 
 /* ── SELECCIONAR LUGAR ── */
 async function seleccionarLugar(lugar) {
+  clearTimeout(busTimer);
+  busquedaNum++;
+  mostrarSpinnerBus(false);
   cerrarDropdown();
   $('input-busqueda').value = '';
+  $('input-busqueda').blur();   // se esconde el teclado del móvil
   $('btn-limpiar').style.display = 'none';
+  // Si es otro lugar, los datos del anterior ya no valen
+  if (!lugarActual || !mismoId(lugarActual.id, lugar.id)) datosActuales = null;
   lugarActual = lugar;
+  guardarUltimo(lugar);
   setTab('inicio');
   await cargarMeteo();
 }
 
-async function cargarMeteo() {
-  if (!lugarActual) return;
-  mostrarVista('cargando');
-  try {
-    datosActuales = await getMeteo(lugarActual.latitude, lugarActual.longitude);
+/* Pone en pantalla unos datos del lugar actual (recién descargados o de la
+   copia guardada). "t" es cuándo se descargaron. */
+function aplicarDatos(datos, t) {
+  datosActuales = datos;
+  momentoDatos  = t;
 
-    // Cuando se entra por geolocalización no sabemos el nombre del sitio, pero
-    // AEMET sí nos dice de qué municipio es la predicción: lo aprovechamos.
-    if (lugarActual.name === 'Mi ubicación' && datosActuales.municipio) {
-      lugarActual.name = datosActuales.municipio.nombre;
-    }
-
-    actualizarCabecera();
-    actualizarBadgesFuente();
-    setTab(tabActual === 'inicio' ? 'inicio' : tabActual);
-    mostrarVista('datos');
-  } catch(e) {
-    mostrarError('Error cargando el tiempo', e.message);
+  // Cuando se entra por geolocalización no sabemos el nombre del sitio, pero
+  // AEMET sí nos dice de qué municipio es la predicción: lo aprovechamos.
+  if (lugarActual.name === 'Mi ubicación' && datosActuales.municipio) {
+    lugarActual.name = datosActuales.municipio.nombre;
+    guardarUltimo(lugarActual);   // para que al volver salga con su nombre
   }
+
+  actualizarCabecera();
+  actualizarBadgesFuente();
+  // Si estás en Favoritos, la recarga no te saca de ahí
+  if (tabActual !== 'favoritos') setTab(tabActual);
+}
+
+async function cargarMeteo({ silencioso = false } = {}) {
+  if (!lugarActual) return;
+  const num   = ++cargaNum;
+  const lugar = lugarActual;
+  if (!silencioso) anunciar(`Cargando el tiempo de ${lugar.name}`);
+
+  // Si ya se ven datos de este lugar (recarga), se quedan en pantalla. Si no,
+  // se enseña la copia guardada; y si tampoco hay, la rueda de carga.
+  if (!datosActuales) {
+    const guardado = leerCache(lugar.id);
+    if (guardado) aplicarDatos(guardado.datos, guardado.t);
+  }
+  estadoCarga = { cargando: true, error: null };
+  if (datosActuales) pintarEstadoDatos(); else mostrarVista('cargando');
+
+  try {
+    const datos = await getMeteo(lugar.latitude, lugar.longitude);
+    if (num !== cargaNum) return;   // mientras tanto se eligió otro lugar
+    const t = Date.now();
+    guardarCache(lugar.id, datos, t);
+    estadoCarga = { cargando: false, error: null };
+    aplicarDatos(datos, t);
+    if (!silencioso) anunciar(`Tiempo de ${lugarActual.name} actualizado`);
+  } catch(e) {
+    if (num !== cargaNum) return;
+    estadoCarga = { cargando: false, error: e.message };
+    // (las recargas automáticas no avisan: sin cobertura se repetiría cada 5 min)
+    if (datosActuales && !silencioso) anunciar('No se ha podido actualizar. ' + e.message);
+    // Con datos en pantalla (guardados o anteriores) se siguen enseñando y
+    // solo se avisa de que no se han podido actualizar. Se vuelven a pintar
+    // porque la hora en curso y el "hoy" pueden haber cambiado.
+    if (!datosActuales) mostrarError('Error cargando el tiempo', e.message);
+    else if (tabActual !== 'favoritos') setTab(tabActual);
+    else pintarEstadoDatos();
+  }
+}
+
+/* Línea bajo los datos de la tarjeta: cuándo se actualizaron los datos,
+   si se están actualizando o si no se ha podido (y se ven datos antiguos).
+   Al lado, el botón para actualizar a mano. */
+function pintarEstadoDatos() {
+  const el = $('estado-datos');
+  if (!el) return;
+  el.classList.toggle('aviso', !!estadoCarga.error);
+  let texto;
+  if (estadoCarga.cargando)   texto = 'Actualizando…';
+  else if (estadoCarga.error) texto = `⚠️ Sin actualizar: se ven los datos de ${textoHace(momentoDatos)}. ${estadoCarga.error}`;
+  else                        texto = `Actualizado ${textoHace(momentoDatos)}`;
+  $('estado-texto').textContent = texto;
+  $('btn-actualizar').disabled  = estadoCarga.cargando;
+}
+
+$('btn-actualizar').addEventListener('click', () => cargarMeteo());
+
+// El "hace X min" se refresca cada minuto mientras se ve la tarjeta
+setInterval(() => {
+  if (document.visibilityState !== 'hidden' && $('tarjeta-actual').style.display !== 'none') pintarEstadoDatos();
+}, 60 * 1000);
+
+/* "hace 5 min", "hace 3 h"... */
+function textoHace(t) {
+  if (!t) return 'antes';
+  const min = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (min < 1)  return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60);
+  return h < 24 ? `hace ${h} h` : `hace ${Math.floor(h / 24)} d`;
 }
 
 /* ── VISTAS ── */
@@ -730,6 +1051,7 @@ function mostrarVista(cual) {
 }
 
 function mostrarError(titulo, msg) {
+  anunciar(`${titulo}. ${msg}`);
   $('error-titulo').textContent = titulo;
   $('error-msg').textContent    = msg;
   mostrarVista('error');
@@ -741,14 +1063,17 @@ function actualizarCabecera() {
     $('titulo').textContent = lugarActual.name;
     $('btn-back').style.display = 'inline-block';
   } else {
-    $('titulo').textContent = '🌤️ El Tiempo';
+    $('titulo').innerHTML = '<span aria-hidden="true">🌤️</span> El Tiempo';
     $('btn-back').style.display = 'none';
   }
 }
 
 $('btn-back').addEventListener('click', () => {
+  cargaNum++;   // si había una carga en marcha, ya no se pinta
+  olvidarUltimo();
   lugarActual   = null;
   datosActuales = null;
+  momentoDatos  = null;
   tabActual     = 'inicio';
   actualizarCabecera();
   setTab('inicio');
@@ -760,6 +1085,9 @@ function setTab(tab) {
   tabActual = tab;
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('activo', b.dataset.tab === tab);
+    // El lector de pantalla dice cuál es la pestaña activa
+    if (b.dataset.tab === tab) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
   });
   if (!lugarActual || !datosActuales) {
     if (tab === 'favoritos') mostrarVista('favoritos');
@@ -801,21 +1129,29 @@ function renderizarActual() {
 
   // AEMET no da "observación de ahora mismo", da predicción hora a hora. Lo
   // más parecido al momento actual es la hora en curso, así que se busca esa.
-  const c   = horaEnCurso() || datosActuales.horas[0];
+  // Si la hora en curso no está (datos antiguos o que empiezan más tarde),
+  // la más cercana hacia delante; antes se cogía la primera, aunque fuera de ayer.
+  const c   = horaEnCurso()
+           || datosActuales.horas.find(h => h.hora.slice(0, 13) >= ahoraEnLugar().slice(0, 13))
+           || datosActuales.horas[0];
   const inf = iconoDe(c, esNoche(c.hora));
-  const now = new Date();
+  const hoy = diaDe(ahoraEnLugar());
 
   $('tarjeta-nombre').textContent   = lugarActual.name;
-  $('tarjeta-fecha').textContent    = `${[lugarActual.admin2, lugarActual.admin1].filter(Boolean).join(', ')} · ${DIAS[now.getDay()]} ${now.getDate()} de ${MESES[now.getMonth()]}`;
+  // Con "Mi ubicación" no hay provincia: entonces solo va la fecha, sin " · "
+  const provincia = [lugarActual.admin2, lugarActual.admin1].filter(Boolean).join(', ');
+  const fecha     = `${DIAS[hoy.getDay()]} ${hoy.getDate()} de ${MESES[hoy.getMonth()]}`;
+  $('tarjeta-fecha').textContent    = [provincia, fecha].filter(Boolean).join(' · ');
   $('temp-emoji').textContent       = inf.e;
   $('temp-valor').textContent       = c.temperatura != null ? `${Math.round(c.temperatura)}°` : '—';
   $('temp-desc').textContent        = inf.d;
   $('temp-sensacion').textContent   = c.sensacion != null ? `Sensación ${Math.round(c.sensacion)}°` : '';
 
   pintarSelloFuente();
+  pintarEstadoDatos();
   actualizarBtnGuardar();
 
-  const uv = datosActuales.dias?.[0]?.uvMax;
+  const uv = diasDesdeHoy()[0]?.uvMax;
   $('grid-datos').innerHTML = [
     { i:'💨', l:'Viento',        v: textoViento(c.viento) },
     { i:'💧', l:'Humedad',       v: c.humedad != null ? `${c.humedad}%` : '—' },
@@ -823,8 +1159,8 @@ function renderizarActual() {
     { i:'☀️', l:'Índice UV',     v: uv != null ? `${uv}/11` : '—' },
   ].map(d => `
     <div class="dato-card">
-      <div class="dato-label">${d.i} ${d.l}</div>
-      <div class="dato-val">${d.v}</div>
+      <div class="dato-label"><span aria-hidden="true">${d.i}</span> ${d.l}</div>
+      <div class="dato-val">${esc(d.v)}</div>
     </div>
   `).join('');
 }
@@ -832,14 +1168,42 @@ function renderizarActual() {
 /* Devuelve la hora en curso dentro de la predicción, o null si la predicción
    empieza más tarde (puede pasar si AEMET va con retraso). */
 function horaEnCurso() {
-  const ahora = new Date();
-  ahora.setMinutes(0, 0, 0);
-  return datosActuales.horas.find(h => new Date(h.hora).getTime() === ahora.getTime()) || null;
+  const clave = ahoraEnLugar().slice(0, 13);   // "2026-09-27T14"
+  return datosActuales.horas.find(h => h.hora.slice(0, 13) === clave) || null;
+}
+
+/* Los días de la predicción desde hoy (hoy en el lugar). Si los datos son de
+   ayer, el primer día ya no es "hoy" y se quita. */
+function diasDesdeHoy() {
+  const dias = datosActuales?.dias || [];
+  const hoy = ahoraEnLugar().slice(0, 10);
+  const desdeHoy = dias.filter(d => d.fecha.slice(0, 10) >= hoy);
+  return desdeHoy.length ? desdeHoy : dias;
+}
+
+/* Probabilidad de lluvia. Si AEMET no da el dato (null) se pone "—": antes
+   salía "0 %", que parece un dato y puede ser falso (horas sin dato entre
+   otras con un 90 %). */
+function textoProb(p) {
+  return p != null ? `${p}%` : '—';
+}
+
+/* Texto de la derecha de cada fila de Días y Horas: el cielo escrito
+   ("Nubes altas") y debajo lluvia y viento en una sola línea. Antes el
+   cielo solo estaba en el emoji y en un "title" que en el móvil no se ve. */
+function htmlMeteo(descripcion, prob, viento) {
+  const cielo = (descripcion && descripcion !== '—') ? `<div class="meteo-cielo">${esc(descripcion)}</div>` : '';
+  return cielo + `<div class="meteo-datos">`
+    + `<span class="m-lluvia"><span aria-hidden="true">💧</span><span class="solo-lector">Probabilidad de lluvia</span> ${esc(prob)}</span>`
+    + `<span aria-hidden="true"> · </span>`
+    + `<span class="m-viento"><span aria-hidden="true">💨</span><span class="solo-lector">, viento</span> ${esc(viento)}</span>`
+    + `</div>`;
 }
 
 /* El viento llega igual de AEMET y de Open-Meteo: {direccion:'NE', velocidad:9} */
 function textoViento(v) {
   if (!v || v.velocidad == null) return '—';
+  if (Math.round(v.velocidad) === 0) return 'Calma';
   // "C" es como AEMET llama a la calma (viento flojo variable)
   const dir = (!v.direccion || v.direccion === 'C') ? '' : v.direccion + ' ';
   return `${dir}${Math.round(v.velocidad)} km/h`;
@@ -888,7 +1252,8 @@ function actualizarBtnGuardar() {
   if (!lugarActual) return;
   const guardado = isFav(lugarActual.id);
   $('btn-guardar').className = 'btn-guardar' + (guardado ? ' guardado' : '');
-  $('btn-guardar').innerHTML  = (guardado ? '★ Guardado' : '☆ Guardar');
+  $('btn-guardar').innerHTML  = (guardado ? '<span><span aria-hidden="true">★</span> Guardado</span>' : '<span><span aria-hidden="true">☆</span> Guardar</span>');
+  $('btn-guardar').setAttribute('aria-pressed', guardado ? 'true' : 'false');
 }
 
 $('btn-guardar').addEventListener('click', () => {
@@ -902,44 +1267,61 @@ $('btn-guardar').addEventListener('click', () => {
 /* ── DÍAS ── */
 function renderizarDias() {
   if (!datosActuales?.dias?.length) return;
-  $('lista-dias').innerHTML = datosActuales.dias.map((dia, i) => {
-    const dt  = new Date(dia.fecha.slice(0,10) + 'T12:00:00');
+  const hoy = ahoraEnLugar().slice(0, 10);
+  $('lista-dias').innerHTML = diasDesdeHoy().map(dia => {
+    const esHoy = dia.fecha.slice(0, 10) === hoy;
+    const dt  = diaDe(dia.fecha);
     const lbl = `${DIAS[dt.getDay()].toUpperCase()} ${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()}`;
     // El resumen del día se pinta siempre con el cielo de día, nunca de noche
     const inf = iconoDe({ cielo: dia.cielo?.descripcion, codigoWmo: dia.codigoWmo }, false);
     const tMx = dia.tempMax != null ? Math.round(dia.tempMax) : '—';
     const tMn = dia.tempMin != null ? Math.round(dia.tempMin) : '—';
-    const pp  = dia.probPrecipitacion ?? 0;
+    const pp  = textoProb(dia.probPrecipitacion);
     return `
-      <div class="dia-row ${i === 0 ? 'hoy' : ''}">
-        <div class="dia-fecha-lbl">${lbl}${i === 0 ? ' · HOY' : ''}</div>
+      <div class="dia-row ${esHoy ? 'hoy' : ''}">
+        <div class="dia-fecha-lbl">${lbl}${esHoy ? ' · HOY' : ''}</div>
         <div class="dia-body">
           <div class="dia-temps">
-            <div class="dia-temp max"><span class="flecha">↑</span><span class="valor">${tMx}°</span></div>
-            <div class="dia-temp min"><span class="flecha">↓</span><span class="valor">${tMn}°</span></div>
+            <div class="dia-temp max"><span class="flecha" aria-hidden="true">↑</span><span class="solo-lector">Máxima </span><span class="valor">${tMx}°</span></div>
+            <div class="dia-temp min"><span class="flecha" aria-hidden="true">↓</span><span class="solo-lector">Mínima </span><span class="valor">${tMn}°</span></div>
           </div>
-          <span class="dia-emoji" title="${inf.d || ''}">${inf.e}</span>
-          <div class="dia-meteo">
-            <div>💧 ${pp}%</div>
-            <div>💨 ${textoViento(dia.viento)}</div>
-          </div>
+          <span class="dia-emoji" aria-hidden="true">${inf.e}</span>
+          <div class="dia-meteo">${htmlMeteo(inf.d, pp, textoViento(dia.viento))}</div>
         </div>
+        ${htmlExtraDia(dia)}
       </div>
     `;
   }).join('');
 }
 
+/* Datos del día que el Worker ya enviaba y no se usaban: sensación térmica
+   y humedad, mínima y máxima. Solo vienen con AEMET; si faltan, no se pinta
+   nada. */
+function htmlExtraDia(dia) {
+  const rango = (min, max, unidad) => {
+    if (min == null && max == null) return null;
+    if (min == null || max == null) return `${Math.round(min ?? max)}${unidad}`;
+    return Math.round(min) === Math.round(max) ? `${Math.round(min)}${unidad}` : `${Math.round(min)}–${Math.round(max)}${unidad}`;
+  };
+  const partes = [];
+  const sens = rango(dia.sensacionMin, dia.sensacionMax, '°');
+  const hum  = rango(dia.humedadMin,   dia.humedadMax,   ' %');
+  if (sens) partes.push(`Sensación ${sens}`);
+  if (hum)  partes.push(`Humedad ${hum}`);
+  return partes.length ? `<div class="dia-extra">${esc(partes.join(' · '))}</div>` : '';
+}
+
 /* ── HORAS ── */
 function renderizarHoras() {
   if (!datosActuales?.horas?.length) return;
-  const ahora = new Date(); ahora.setMinutes(0,0,0);
+  const ahora = ahoraEnLugar().slice(0, 13);   // hora en curso en el lugar
 
-  // Agrupar por día, de la hora actual en adelante y máximo 3 días
+  // De la hora actual en adelante, 72 horas como dice el título, agrupadas
+  // por día. (Antes eran 3 días de calendario: a las 23 h salían solo 25 h.)
   const grupos = {};
-  for (const h of datosActuales.horas) {
-    if (new Date(h.hora) < ahora) continue;
+  const proximas = datosActuales.horas.filter(h => h.hora.slice(0, 13) >= ahora).slice(0, 72);
+  for (const h of proximas) {
     const dia = h.hora.slice(0,10);
-    if (Object.keys(grupos).length >= 3 && !grupos[dia]) break;
     if (!grupos[dia]) grupos[dia] = [];
     grupos[dia].push(h);
   }
@@ -949,13 +1331,13 @@ function renderizarHoras() {
   // se vea de un vistazo hasta dónde llega lo oficial.
   let yaAvisado = datosActuales.fuente !== 'aemet';
 
-  $('lista-horas').innerHTML = Object.entries(grupos).slice(0,3).map(([dia, horas]) => {
-    const dt  = new Date(dia + 'T12:00:00');
+  $('lista-horas').innerHTML = Object.entries(grupos).map(([dia, horas]) => {
+    const dt  = diaDe(dia);
     const lbl = `${DIAS[dt.getDay()].toUpperCase()} ${dt.getDate()} ${MESES[dt.getMonth()].toUpperCase()}`;
     const filas = horas.map((h, ii) => {
       const inf  = iconoDe(h, esNoche(h.hora));
       const temp = h.temperatura != null ? Math.round(h.temperatura) : '—';
-      const pp   = h.probPrecipitacion ?? 0;
+      const pp   = textoProb(h.probPrecipitacion);
       const estimada = h.fuente !== 'aemet';
 
       let corte = '';
@@ -966,13 +1348,10 @@ function renderizarHoras() {
 
       return corte + `
         <div class="hora-row ${estimada ? 'estimada' : ''}" style="${ii === horas.length-1 ? 'border-bottom:none' : ''}">
-          <div class="hora-hora">${h.hora.slice(11,16)}</div>
+          <div class="hora-hora">${esc(h.hora.slice(11,16))}</div>
           <div class="hora-temp">${temp}°</div>
-          <span class="hora-emoji" title="${inf.d || ''}">${inf.e}</span>
-          <div class="hora-meteo">
-            <div>💧 ${pp}%</div>
-            <div>💨 ${textoViento(h.viento)}</div>
-          </div>
+          <span class="hora-emoji" aria-hidden="true">${inf.e}</span>
+          <div class="hora-meteo">${htmlMeteo(inf.d, pp, textoViento(h.viento))}</div>
         </div>
       `;
     }).join('');
@@ -996,20 +1375,21 @@ function renderizarFavoritos() {
     return;
   }
   $('contenido-favs').innerHTML = favs.map(l => `
-    <div class="fav-item" data-id="${l.id}">
-      <span class="fav-ico">📍</span>
-      <div style="flex:1;min-width:0">
-        <div class="fav-nombre">${l.name}</div>
-        <div class="fav-sub">${[l.admin2, l.admin1].filter(Boolean).join(', ')}</div>
-      </div>
-      <button class="fav-del" data-id="${l.id}">✕</button>
+    <div class="fav-item" data-id="${esc(l.id)}">
+      <span class="fav-ico" aria-hidden="true">📍</span>
+      <button type="button" class="fav-abrir">
+        <span class="fav-nombre">${esc(l.name)}</span>
+        <span class="fav-sub">${esc([l.admin2, l.admin1].filter(Boolean).join(', '))}</span>
+      </button>
+      <button type="button" class="fav-del" data-id="${esc(l.id)}" aria-label="Quitar ${esc(l.name)} de favoritos">✕</button>
     </div>
   `).join('');
 
+  // Toda la fila responde al dedo; con teclado o lector se usa el botón del nombre
   $('contenido-favs').querySelectorAll('.fav-item').forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.classList.contains('fav-del')) return;
-      const l = getFavs().find(f => f.id == el.dataset.id);
+      const l = getFavs().find(f => mismoId(f.id, el.dataset.id));
       if (l) seleccionarLugar(l);
     });
   });
@@ -1029,11 +1409,11 @@ function actualizarAccesoRapido() {
   if (!favs.length) { $('acceso-rapido').style.display = 'none'; return; }
   $('acceso-rapido').style.display = 'block';
   $('lista-rapida').innerHTML = favs.slice(0,4).map(l => `
-    <button class="btn-fav-rapido" data-id="${l.id}">📍 ${l.name}</button>
+    <button type="button" class="btn-fav-rapido" data-id="${esc(l.id)}"><span><span aria-hidden="true">📍</span> ${esc(l.name)}</span></button>
   `).join('');
   $('lista-rapida').querySelectorAll('.btn-fav-rapido').forEach(btn => {
     btn.addEventListener('click', () => {
-      const l = getFavs().find(f => f.id == btn.dataset.id);
+      const l = getFavs().find(f => mismoId(f.id, btn.dataset.id));
       if (l) seleccionarLugar(l);
     });
   });
@@ -1043,12 +1423,12 @@ function actualizarAccesoRapido() {
 $('btn-geo').addEventListener('click', () => {
   if (!navigator.geolocation) { $('geo-error').textContent = 'Tu navegador no soporta geolocalización.'; return; }
   $('btn-geo').disabled = true;
-  $('btn-geo').textContent = '⏳ Localizando...';
+  $('btn-geo').innerHTML = '<span><span aria-hidden="true">⏳</span> Localizando...</span>';
   $('geo-error').textContent = '';
   navigator.geolocation.getCurrentPosition(
     async pos => {
       $('btn-geo').disabled = false;
-      $('btn-geo').innerHTML = '📍 Usar mi ubicación';
+      $('btn-geo').innerHTML = '<span><span aria-hidden="true">📍</span> Usar mi ubicación</span>';
       const { latitude, longitude } = pos.coords;
       // Buscar nombre del municipio más cercano via geocoding inverso aproximado
       try {
@@ -1059,8 +1439,8 @@ $('btn-geo').addEventListener('click', () => {
           name: 'Mi ubicación',
           admin1: '', admin2: '',
           latitude, longitude,
-          timezone: 'Europe/Madrid'
         };
+        lugar.timezone = zonaDe(lugar);   // Canarias o península, según dónde estés
         await seleccionarLugar(lugar);
       } catch(e) {
         $('geo-error').textContent = 'Error: ' + e.message;
@@ -1068,15 +1448,33 @@ $('btn-geo').addEventListener('click', () => {
     },
     err => {
       $('btn-geo').disabled = false;
-      $('btn-geo').innerHTML = '📍 Usar mi ubicación';
+      $('btn-geo').innerHTML = '<span><span aria-hidden="true">📍</span> Usar mi ubicación</span>';
       $('geo-error').textContent = 'No se pudo acceder a tu ubicación. Revisa los permisos del navegador.';
     },
     { timeout: 10000 }
   );
 });
 
+/* ── AL VOLVER A LA APP ──
+   En el móvil la app se queda abierta en segundo plano. Al volver a ella
+   horas después, se veía la previsión de entonces. Ahora, al volver:
+   - si los datos tienen más de 30 minutos, se piden otra vez (mientras
+     llegan se siguen viendo los que había);
+   - si son recientes, solo se vuelve a pintar (la hora en curso y el "hoy"
+     pueden haber cambiado).
+   Lo mismo cada 5 minutos si la app está a la vista todo el rato. */
+const RECARGAR_TRAS_MS = 30 * 60 * 1000;
+function revisarFrescura() {
+  if (document.visibilityState === 'hidden' || !lugarActual || estadoCarga.cargando) return;
+  if (!momentoDatos || Date.now() - momentoDatos > RECARGAR_TRAS_MS) cargarMeteo({ silencioso: true });
+  else if (datosActuales && tabActual !== 'favoritos') setTab(tabActual);
+}
+document.addEventListener('visibilitychange', revisarFrescura);
+window.addEventListener('pageshow', e => { if (e.persisted) revisarFrescura(); });
+setInterval(revisarFrescura, 5 * 60 * 1000);
+
 /* ── REINTENTAR ── */
-$('btn-reintentar').addEventListener('click', cargarMeteo);
+$('btn-reintentar').addEventListener('click', () => cargarMeteo());
 
 /* ── ICONO DE PANTALLA DE INICIO ──
    Android necesita un "manifest" (una fichita con el nombre y el icono de la
@@ -1106,6 +1504,10 @@ try {
 /* ── INIT ── */
 mostrarVista('inicio-vacio');
 actualizarAccesoRapido();
+{
+  const ultimo = leerUltimo();
+  if (ultimo) seleccionarLugar(ultimo);
+}
 </script>
 </body>
 </html>
