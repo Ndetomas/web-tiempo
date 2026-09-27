@@ -671,6 +671,19 @@ function guardarCache(id, datos, t) {
   }
 }
 
+/* ── Último lugar visto ──
+   Al abrir la app se carga directamente el último lugar que miraste. Si
+   vuelves al inicio con la flecha ←, se olvida y la app abrirá en blanco. */
+const ULTIMO_KEY = 'tiempo5_ultimo';
+function guardarUltimo(lugar) { try { localStorage.setItem(ULTIMO_KEY, JSON.stringify(lugar)); } catch {} }
+function olvidarUltimo()      { try { localStorage.removeItem(ULTIMO_KEY); } catch {} }
+function leerUltimo() {
+  try {
+    const l = JSON.parse(localStorage.getItem(ULTIMO_KEY) || 'null');
+    return (l && l.latitude != null && l.longitude != null) ? l : null;
+  } catch { return null; }
+}
+
 /* ── APIs ── */
 
 /* Pide una dirección y lee la respuesta como JSON, con un límite de espera.
@@ -821,6 +834,7 @@ async function seleccionarLugar(lugar) {
   // Si es otro lugar, los datos del anterior ya no valen
   if (!lugarActual || !mismoId(lugarActual.id, lugar.id)) datosActuales = null;
   lugarActual = lugar;
+  guardarUltimo(lugar);
   setTab('inicio');
   await cargarMeteo();
 }
@@ -835,6 +849,7 @@ function aplicarDatos(datos, t) {
   // AEMET sí nos dice de qué municipio es la predicción: lo aprovechamos.
   if (lugarActual.name === 'Mi ubicación' && datosActuales.municipio) {
     lugarActual.name = datosActuales.municipio.nombre;
+    guardarUltimo(lugarActual);   // para que al volver salga con su nombre
   }
 
   actualizarCabecera();
@@ -952,6 +967,7 @@ function actualizarCabecera() {
 
 $('btn-back').addEventListener('click', () => {
   cargaNum++;   // si había una carga en marcha, ya no se pinta
+  olvidarUltimo();
   lugarActual   = null;
   datosActuales = null;
   momentoDatos  = null;
@@ -1356,6 +1372,10 @@ try {
 /* ── INIT ── */
 mostrarVista('inicio-vacio');
 actualizarAccesoRapido();
+{
+  const ultimo = leerUltimo();
+  if (ultimo) seleccionarLugar(ultimo);
+}
 </script>
 </body>
 </html>
