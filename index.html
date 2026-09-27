@@ -190,9 +190,17 @@
     }
     .dato-label { font-size:11px; color:var(--text3); margin-bottom:4px; }
     .dato-val   { font-size:14px; font-weight:600; }
-    #estado-datos { font-size:12px; color:var(--text2); margin-top:12px; line-height:1.5; position:relative; }
-    #estado-datos:empty { display:none; }
-    #estado-datos.aviso { color:var(--warm); }
+    #estado-datos {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      font-size:12px; color:var(--text2); margin-top:12px; line-height:1.5; position:relative;
+    }
+    #estado-datos.aviso #estado-texto { color:var(--warm); }
+    #btn-actualizar {
+      background:rgba(255,255,255,.85); border:1px solid var(--border);
+      border-radius:999px; padding:5px 12px; cursor:pointer; flex-shrink:0;
+      font-size:12px; font-weight:600; color:var(--text2); font-family:inherit;
+    }
+    #btn-actualizar:disabled { opacity:.5; cursor:default; }
 
     /* ── Secciones ── */
     .sec-title {
@@ -435,7 +443,10 @@
         </div>
       </div>
       <div id="grid-datos"></div>
-      <div id="estado-datos"></div>
+      <div id="estado-datos">
+        <span id="estado-texto"></span>
+        <button id="btn-actualizar" type="button">↻ Actualizar</button>
+      </div>
     </div>
 
     <!-- Previsión 7 días -->
@@ -865,16 +876,27 @@ async function cargarMeteo() {
   }
 }
 
-/* Línea bajo los datos de la tarjeta: avisa si se está actualizando o si
-   no se ha podido y se están viendo datos antiguos. */
+/* Línea bajo los datos de la tarjeta: cuándo se actualizaron los datos,
+   si se están actualizando o si no se ha podido (y se ven datos antiguos).
+   Al lado, el botón para actualizar a mano. */
 function pintarEstadoDatos() {
   const el = $('estado-datos');
   if (!el) return;
   el.classList.toggle('aviso', !!estadoCarga.error);
-  if (estadoCarga.cargando) el.textContent = 'Actualizando…';
-  else if (estadoCarga.error) el.textContent = `⚠️ Sin actualizar: se ven los datos de ${textoHace(momentoDatos)}. ${estadoCarga.error}`;
-  else el.textContent = '';
+  let texto;
+  if (estadoCarga.cargando)   texto = 'Actualizando…';
+  else if (estadoCarga.error) texto = `⚠️ Sin actualizar: se ven los datos de ${textoHace(momentoDatos)}. ${estadoCarga.error}`;
+  else                        texto = `Actualizado ${textoHace(momentoDatos)}`;
+  $('estado-texto').textContent = texto;
+  $('btn-actualizar').disabled  = estadoCarga.cargando;
 }
+
+$('btn-actualizar').addEventListener('click', () => cargarMeteo());
+
+// El "hace X min" se refresca cada minuto mientras se ve la tarjeta
+setInterval(() => {
+  if (document.visibilityState !== 'hidden' && $('tarjeta-actual').style.display !== 'none') pintarEstadoDatos();
+}, 60 * 1000);
 
 /* "hace 5 min", "hace 3 h"... */
 function textoHace(t) {
