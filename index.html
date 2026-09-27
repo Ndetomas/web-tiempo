@@ -587,7 +587,9 @@ function isFav(id)        { return getFavs().some(f => mismoId(f.id, id)); }
 
 /* ── APIs ── */
 async function buscarLugares(q) {
-  const r = await fetch(`${GEO_URL}?name=${encodeURIComponent(q)}&count=15&language=es&format=json`);
+  // countryCode=ES: el buscador devuelve solo lugares de España. Sin él,
+  // "Santa Cruz" traía 15 lugares del mundo y solo 1 era español.
+  const r = await fetch(`${GEO_URL}?name=${encodeURIComponent(q)}&count=15&language=es&format=json&countryCode=ES`);
   if (!r.ok) throw new Error(`Error ${r.status} buscando municipios`);
   const data = await r.json();
   return (data.results || [])
