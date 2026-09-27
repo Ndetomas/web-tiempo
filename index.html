@@ -857,9 +857,11 @@ async function cargarMeteo() {
     if (num !== cargaNum) return;
     estadoCarga = { cargando: false, error: e.message };
     // Con datos en pantalla (guardados o anteriores) se siguen enseñando y
-    // solo se avisa de que no se han podido actualizar.
-    if (datosActuales) pintarEstadoDatos();
-    else mostrarError('Error cargando el tiempo', e.message);
+    // solo se avisa de que no se han podido actualizar. Se vuelven a pintar
+    // porque la hora en curso y el "hoy" pueden haber cambiado.
+    if (!datosActuales) mostrarError('Error cargando el tiempo', e.message);
+    else if (tabActual !== 'favoritos') setTab(tabActual);
+    else pintarEstadoDatos();
   }
 }
 
@@ -983,7 +985,11 @@ function renderizarActual() {
 
   // AEMET no da "observación de ahora mismo", da predicción hora a hora. Lo
   // más parecido al momento actual es la hora en curso, así que se busca esa.
-  const c   = horaEnCurso() || datosActuales.horas[0];
+  // Si la hora en curso no está (datos antiguos o que empiezan más tarde),
+  // la más cercana hacia delante; antes se cogía la primera, aunque fuera de ayer.
+  const c   = horaEnCurso()
+           || datosActuales.horas.find(h => h.hora.slice(0, 13) >= ahoraEnLugar().slice(0, 13))
+           || datosActuales.horas[0];
   const inf = iconoDe(c, esNoche(c.hora));
   const hoy = diaDe(ahoraEnLugar());
 
@@ -1278,6 +1284,24 @@ $('btn-geo').addEventListener('click', () => {
     { timeout: 10000 }
   );
 });
+
+/* ── AL VOLVER A LA APP ──
+   En el móvil la app se queda abierta en segundo plano. Al volver a ella
+   horas después, se veía la previsión de entonces. Ahora, al volver:
+   - si los datos tienen más de 30 minutos, se piden otra vez (mientras
+     llegan se siguen viendo los que había);
+   - si son recientes, solo se vuelve a pintar (la hora en curso y el "hoy"
+     pueden haber cambiado).
+   Lo mismo cada 5 minutos si la app está a la vista todo el rato. */
+const RECARGAR_TRAS_MS = 30 * 60 * 1000;
+function revisarFrescura() {
+  if (document.visibilityState === 'hidden' || !lugarActual || estadoCarga.cargando) return;
+  if (!momentoDatos || Date.now() - momentoDatos > RECARGAR_TRAS_MS) cargarMeteo();
+  else if (datosActuales && tabActual !== 'favoritos') setTab(tabActual);
+}
+document.addEventListener('visibilitychange', revisarFrescura);
+window.addEventListener('pageshow', e => { if (e.persisted) revisarFrescura(); });
+setInterval(revisarFrescura, 5 * 60 * 1000);
 
 /* ── REINTENTAR ── */
 $('btn-reintentar').addEventListener('click', cargarMeteo);
