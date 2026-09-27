@@ -578,9 +578,12 @@ function dirViento(g) {
 const FAV_KEY = 'tiempo5_favs';
 function getFavs()        { try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; } }
 function saveFavs(favs)   { localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }
-function addFav(lugar)    { const f = getFavs(); if (!f.find(x => x.id === lugar.id)) { f.unshift(lugar); saveFavs(f.slice(0,12)); } }
-function removeFav(id)    { saveFavs(getFavs().filter(f => f.id !== id)); }
-function isFav(id)        { return getFavs().some(f => f.id === id); }
+function addFav(lugar)    { const f = getFavs(); if (!f.find(x => mismoId(x.id, lugar.id))) { f.unshift(lugar); saveFavs(f.slice(0,12)); } }
+// Los id del buscador son números (3117735) pero al leerlos de la página
+// llegan como texto ("3117735"): se comparan siempre como texto.
+function mismoId(a, b)    { return String(a) === String(b); }
+function removeFav(id)    { saveFavs(getFavs().filter(f => !mismoId(f.id, id))); }
+function isFav(id)        { return getFavs().some(f => mismoId(f.id, id)); }
 
 /* ── APIs ── */
 async function buscarLugares(q) {
@@ -1009,7 +1012,7 @@ function renderizarFavoritos() {
   $('contenido-favs').querySelectorAll('.fav-item').forEach(el => {
     el.addEventListener('click', e => {
       if (e.target.classList.contains('fav-del')) return;
-      const l = getFavs().find(f => f.id == el.dataset.id);
+      const l = getFavs().find(f => mismoId(f.id, el.dataset.id));
       if (l) seleccionarLugar(l);
     });
   });
@@ -1033,7 +1036,7 @@ function actualizarAccesoRapido() {
   `).join('');
   $('lista-rapida').querySelectorAll('.btn-fav-rapido').forEach(btn => {
     btn.addEventListener('click', () => {
-      const l = getFavs().find(f => f.id == btn.dataset.id);
+      const l = getFavs().find(f => mismoId(f.id, btn.dataset.id));
       if (l) seleccionarLugar(l);
     });
   });
