@@ -248,7 +248,9 @@
     .dia-temp.max .valor { color:var(--warm); }
     .dia-temp.min .valor { color:var(--cold); }
     .dia-emoji { font-size:30px; flex-shrink:0; }
-    .dia-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.7; }
+    .dia-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.7; min-width:0; }
+    /* Descripción del cielo ("Nubes altas") encima de lluvia y viento */
+    .meteo-cielo { color:var(--text); font-weight:500; line-height:1.35; margin-bottom:2px; }
 
     /* ── Horas ── */
     .hora-grupo-titulo {
@@ -264,7 +266,7 @@
     .hora-hora  { width:48px; font-family:'DM Mono',monospace; font-size:14px; color:var(--text2); flex-shrink:0; }
     .hora-temp  { width:46px; font-size:22px; font-weight:700; flex-shrink:0; }
     .hora-emoji { font-size:24px; flex-shrink:0; }
-    .hora-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.65; }
+    .hora-meteo { flex:1; font-size:12px; color:var(--text2); line-height:1.65; min-width:0; }
 
     /* ── Favoritos ── */
     #pantalla-favs { animation:fadeUp .3s ease both; }
@@ -1155,6 +1157,18 @@ function textoProb(p) {
   return p != null ? `${p}%` : '—';
 }
 
+/* Texto de la derecha de cada fila de Días y Horas: el cielo escrito
+   ("Nubes altas") y debajo lluvia y viento en una sola línea. Antes el
+   cielo solo estaba en el emoji y en un "title" que en el móvil no se ve. */
+function htmlMeteo(descripcion, prob, viento) {
+  const cielo = (descripcion && descripcion !== '—') ? `<div class="meteo-cielo">${esc(descripcion)}</div>` : '';
+  return cielo + `<div class="meteo-datos">`
+    + `<span class="m-lluvia"><span aria-hidden="true">💧</span><span class="solo-lector">Probabilidad de lluvia</span> ${esc(prob)}</span>`
+    + `<span aria-hidden="true"> · </span>`
+    + `<span class="m-viento"><span aria-hidden="true">💨</span><span class="solo-lector">, viento</span> ${esc(viento)}</span>`
+    + `</div>`;
+}
+
 /* El viento llega igual de AEMET y de Open-Meteo: {direccion:'NE', velocidad:9} */
 function textoViento(v) {
   if (!v || v.velocidad == null) return '—';
@@ -1240,11 +1254,8 @@ function renderizarDias() {
             <div class="dia-temp max"><span class="flecha" aria-hidden="true">↑</span><span class="solo-lector">Máxima </span><span class="valor">${tMx}°</span></div>
             <div class="dia-temp min"><span class="flecha" aria-hidden="true">↓</span><span class="solo-lector">Mínima </span><span class="valor">${tMn}°</span></div>
           </div>
-          <span class="dia-emoji" role="img" aria-label="${esc(inf.d)}" title="${esc(inf.d)}">${inf.e}</span>
-          <div class="dia-meteo">
-            <div><span aria-hidden="true">💧</span><span class="solo-lector">Probabilidad de lluvia</span> ${esc(pp)}</div>
-            <div><span aria-hidden="true">💨</span><span class="solo-lector">Viento</span> ${esc(textoViento(dia.viento))}</div>
-          </div>
+          <span class="dia-emoji" aria-hidden="true">${inf.e}</span>
+          <div class="dia-meteo">${htmlMeteo(inf.d, pp, textoViento(dia.viento))}</div>
         </div>
       </div>
     `;
@@ -1290,11 +1301,8 @@ function renderizarHoras() {
         <div class="hora-row ${estimada ? 'estimada' : ''}" style="${ii === horas.length-1 ? 'border-bottom:none' : ''}">
           <div class="hora-hora">${esc(h.hora.slice(11,16))}</div>
           <div class="hora-temp">${temp}°</div>
-          <span class="hora-emoji" role="img" aria-label="${esc(inf.d)}" title="${esc(inf.d)}">${inf.e}</span>
-          <div class="hora-meteo">
-            <div><span aria-hidden="true">💧</span><span class="solo-lector">Probabilidad de lluvia</span> ${esc(pp)}</div>
-            <div><span aria-hidden="true">💨</span><span class="solo-lector">Viento</span> ${esc(textoViento(h.viento))}</div>
-          </div>
+          <span class="hora-emoji" aria-hidden="true">${inf.e}</span>
+          <div class="hora-meteo">${htmlMeteo(inf.d, pp, textoViento(h.viento))}</div>
         </div>
       `;
     }).join('');
