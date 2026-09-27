@@ -982,7 +982,8 @@ async function cargarMeteo({ silencioso = false } = {}) {
   } catch(e) {
     if (num !== cargaNum) return;
     estadoCarga = { cargando: false, error: e.message };
-    if (datosActuales) anunciar('No se ha podido actualizar. ' + e.message);
+    // (las recargas automáticas no avisan: sin cobertura se repetiría cada 5 min)
+    if (datosActuales && !silencioso) anunciar('No se ha podido actualizar. ' + e.message);
     // Con datos en pantalla (guardados o anteriores) se siguen enseñando y
     // solo se avisa de que no se han podido actualizar. Se vuelven a pintar
     // porque la hora en curso y el "hoy" pueden haber cambiado.
