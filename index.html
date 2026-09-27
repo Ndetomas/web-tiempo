@@ -272,7 +272,8 @@
     .fav-ico   { font-size:22px; flex-shrink:0; }
     .fav-nombre{ font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .fav-sub   { font-size:12px; color:var(--text3); margin-top:1px; }
-    .fav-del   { background:none; border:none; color:var(--text3); cursor:pointer; font-size:17px; padding:4px 6px; line-height:1; flex-shrink:0; }
+    .fav-del   { background:none; border:none; color:var(--text3); cursor:pointer; font-size:17px; padding:4px 6px; line-height:1; flex-shrink:0;
+                 min-width:44px; min-height:44px; margin:-8px -10px -8px 0; }
 
     /* ── Spinner página ── */
     #spinner-pagina { display:none; justify-content:center; padding:56px 0; }
@@ -371,6 +372,15 @@
       content:''; flex:1; height:1px; background:var(--border);
     }
     .hora-row.estimada .hora-temp, .hora-row.estimada .hora-hora { opacity:.72; }
+
+    /* Botones pequeños: la zona que responde al dedo mide al menos 44×44 px
+       (lo que recomienda Apple), aunque el botón se vea igual que antes. */
+    #btn-back, #btn-limpiar, #btn-guardar, #btn-actualizar { position:relative; }
+    #btn-back::after, #btn-limpiar::after, #btn-guardar::after, #btn-actualizar::after {
+      content:''; position:absolute; left:50%; top:50%;
+      width:max(100%, 44px); height:max(100%, 44px);
+      transform:translate(-50%, -50%);
+    }
   </style>
 </head>
 <body>
